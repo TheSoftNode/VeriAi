@@ -1,0 +1,142 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Hardhat files
+cache/
+artifacts/
+build/
+
+# TypeScript build info
+*.tsbuildinfo
+
+# dotenv environment variables file
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Hardhat network artifacts
+deployments/
+!deployments/README.md
+
+# Typechain generated files
+typechain/
+typechain-types/
+
+# Coverage reports
+coverage/
+coverage.json
+
+# Hardhat console history
+.hardhat_console_history
+
+# Test artifacts
+test-results/
+
+# Logs
+logs/
+*.log
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/
+
+# Build artifacts
+dist/
+
+# Gas reporter output
+gas-report.txt
+
+# Slither output
+slither-report.json
+
+# Mythril output
+mythril-output/
+
+# Echidna corpus
+crytic-export/
+
+# Foundry artifacts
+out/
+forge-cache/
+
+# Contracts compilation artifacts
+artifacts/
+build-info/
+
+# Tenderly artifacts
+.tenderly/
+
+# Deployment artifacts
+deployments/*
+!deployments/README.md
+
+# Contract verification artifacts
+verification/
+
+# Security analysis
+security-reports/
+
+# Documentation
+docs/build/
+
+# Lock files (choose one to keep)
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
+
+# Brownie build files
+build/
+
+# Ethers artifacts
+.ethers/
+
+# Solidity cache
+.solhint.json
+
+# OpenZeppelin artifacts
+.openzeppelin/
+openzeppelin-upgrades.json
+
+# Hardhat tasks
+tasks/artifacts/
+
+# Web3 storage
+.web3storage/
+
+# IPFS
+.ipfs/
+
+# Private keys and mnemonics
+.secret
+.mnemonic
+private-keys.json
+mnemonics.json
+
+# Flare network specific
+flare-config.json
+.flare/
+
+# FDC artifacts
+fdc-artifacts/

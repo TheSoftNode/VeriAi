@@ -1,0 +1,182 @@
+import { Request, Response } from 'express';
+import { VerificationService } from '@/services/VerificationService';
+import { createError } from '@/middleware/errorHandler';
+import { logger } from '@/utils/logger';
+
+export class VerificationController {
+  private verificationService: VerificationService;
+
+  constructor() {
+    this.verificationService = new VerificationService();
+  }
+
+  /**
+   * Submit proof for verification
+   */
+  submitProof = async (req: Request, res: Response): Promise<void> => {
+    const {
+      prompt,
+      output,
+      model,
+      outputHash,
+      userAddress,
+      signature,
+      attestationData,
+    } = req.body;
+
+    try {
+      const verification = await this.verificationService.submitProof({
+        prompt,
+        output,
+        model,
+        outputHash,
+        userAddress,
+        signature,
+        attestationData,
+      });
+
+      logger.info('Proof submitted for verification', {
+        verificationId: verification.id,
+        userAddress,
+        model,
+      });
+
+      res.status(201).json({
+        success: true,
+        data: verification,
+      });
+    } catch (error) {
+      logger.error('Failed to submit proof', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        userAddress,
+        model,
+      });
+
+      throw createError.internal('Failed to submit proof for verification');
+    }
+  };
+
+  /**
+   * Get verification status
+   */
+  getVerification = async (req: Request, res: Response): Promise<void> => {
+    const { verificationId } = req.params;
+
+    try {
+      const verification = await this.verificationService.getVerification(
+        verificationId
+      );
+
+      if (!verification) {
+        throw createError.notFound('Verification not found');
+      }
+
+      res.status(200).json({
+        success: true,
+        data: verification,
+      });
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('not found')) {
+        throw error;
+      }
+
+      logger.error('Failed to fetch verification', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        verificationId,
+      });
+
+      throw createError.internal('Failed to fetch verification');
+    }
+  };
+
+  /**
+   * Verify FDC attestation
+   */
+  verifyAttestation = async (req: Request, res: Response): Promise<void> => {
+    const { attestationData, merkleProof } = req.body;
+
+    try {
+      const verification = await this.verificationService.verifyAttestation({
+        attestationData,
+        merkleProof,
+      });
+
+      res.status(200).json({
+        success: true,
+        data: verification,
+      });
+    } catch (error) {
+      logger.error('Failed to verify attestation', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        attestationData: attestationData?.slice(0, 100),
+      });
+
+      throw createError.internal('Failed to verify attestation');
+    }
+  };
+
+  /**
+   * Get verification history for user
+   */
+  getUserVerifications = async (req: Request, res: Response): Promise<void> => {
+    const { userAddress } = req.params;
+    const { page = 1, limit = 20, status } = req.query;
+
+    try {
+      const verifications = await this.verificationService.getUserVerifications({
+        userAddress,
+        page: parseInt(page as string),
+        limit: parseInt(limit as string),
+        status: status as string,
+      });
+
+      res.status(200).json({
+        success: true,
+        data: verifications,
+      });
+    } catch (error) {
+      logger.error('Failed to fetch user verifications', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        userAddress,
+      });
+
+      throw createError.internal('Failed to fetch user verifications');
+    }
+  };
+
+  /**
+   * Challenge a verification
+   */
+  challengeVerification = async (req: Request, res: Response): Promise<void> => {
+    const { verificationId } = req.params;
+    const { challengerAddress, reason, evidence } = req.body;
+
+    try {
+      const challenge = await this.verificationService.challengeVerification({
+        verificationId,
+        challengerAddress,
+        reason,
+        evidence,
+      });
+
+      logger.info('Verification challenged', {
+        verificationId,
+        challengerAddress,
+        reason,
+      });
+
+      res.status(201).json({
+        success: true,
+        data: challenge,
+      });
+    } catch (error) {
+      logger.error('Failed to challenge verification', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        verificationId,
+        challengerAddress,
+      });
+
+      throw createError.internal('Failed to challenge verification');
+    }
+  };
+}
