@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -21,29 +21,53 @@ import {
   Filter
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { userApi } from '@/lib/api/client';
+import { useAccount } from 'wagmi';
 
 const AnalyticsPage = () => {
-  const globalStats = [
-    { title: 'Total Verifications', value: '47,832', change: '+12.5%', icon: BarChart3, color: 'text-primary' },
-    { title: 'Success Rate', value: '98.7%', change: '+0.3%', icon: CheckCircle, color: 'text-chart-3' },
-    { title: 'Active Users', value: '12,450', change: '+8.2%', icon: Users, color: 'text-chart-5' },
-    { title: 'Network Health', value: '99.9%', change: '+0.1%', icon: Activity, color: 'text-accent' },
-  ];
+  const { address, isConnected } = useAccount();
+  const [loading, setLoading] = useState(false);
+  const [globalStats, setGlobalStats] = useState([
+    { title: 'Total Verifications', value: '0', change: '+0%', icon: BarChart3, color: 'text-primary' },
+    { title: 'Success Rate', value: '0%', change: '+0%', icon: CheckCircle, color: 'text-chart-3' },
+    { title: 'Active Users', value: '0', change: '+0%', icon: Users, color: 'text-chart-5' },
+    { title: 'Network Health', value: '0%', change: '+0%', icon: Activity, color: 'text-accent' },
+  ]);
 
-  const modelStats = [
-    { model: 'GPT-4', requests: 15420, success: 98.9, avgTime: '2.3s', color: 'from-primary to-primary/70' },
-    { model: 'Claude-3', requests: 12380, success: 98.5, avgTime: '2.1s', color: 'from-chart-5 to-chart-5/70' },
-    { model: 'GPT-3.5', requests: 10890, success: 97.8, avgTime: '1.8s', color: 'from-chart-3 to-chart-3/70' },
-    { model: 'Gemini', requests: 9142, success: 98.2, avgTime: '2.0s', color: 'from-chart-4 to-chart-4/70' },
-  ];
+  const [modelStats, setModelStats] = useState([
+    { model: 'GPT-4', requests: 0, success: 0, avgTime: '0s', color: 'from-primary to-primary/70' },
+    { model: 'Claude-3', requests: 0, success: 0, avgTime: '0s', color: 'from-chart-5 to-chart-5/70' },
+    { model: 'GPT-3.5', requests: 0, success: 0, avgTime: '0s', color: 'from-chart-3 to-chart-3/70' },
+    { model: 'Gemini', requests: 0, success: 0, avgTime: '0s', color: 'from-chart-4 to-chart-4/70' },
+  ]);
 
-  const recentVerifications = [
-    { id: '1', prompt: 'Write a technical article about blockchain...', model: 'GPT-4', status: 'verified', time: '2m ago' },
-    { id: '2', prompt: 'Create a marketing copy for our product...', model: 'Claude-3', status: 'verified', time: '5m ago' },
-    { id: '3', prompt: 'Generate code documentation for...', model: 'GPT-3.5', status: 'processing', time: '8m ago' },
-    { id: '4', prompt: 'Compose an email response to...', model: 'Gemini', status: 'verified', time: '12m ago' },
-    { id: '5', prompt: 'Draft a research proposal about...', model: 'GPT-4', status: 'failed', time: '15m ago' },
-  ];
+  const [recentVerifications, setRecentVerifications] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (isConnected && address) {
+      loadAnalyticsData();
+    }
+  }, [isConnected, address]);
+
+  const loadAnalyticsData = async () => {
+    setLoading(true);
+    try {
+      const response = await userApi.getStats(address!);
+      if (response.success && response.data) {
+        const data = response.data;
+        setGlobalStats([
+          { title: 'Total Verifications', value: data.totalVerifications?.toString() || '0', change: `+${data.verificationsChange || 0}%`, icon: BarChart3, color: 'text-primary' },
+          { title: 'Success Rate', value: `${data.successRate || 0}%`, change: `+${data.successRateChange || 0}%`, icon: CheckCircle, color: 'text-chart-3' },
+          { title: 'Active Users', value: data.activeUsers?.toString() || '0', change: `+${data.usersChange || 0}%`, icon: Users, color: 'text-chart-5' },
+          { title: 'Network Health', value: `${data.networkHealth || 0}%`, change: `+${data.healthChange || 0}%`, icon: Activity, color: 'text-accent' },
+        ]);
+      }
+    } catch (error) {
+      console.error('Error loading analytics data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-8">

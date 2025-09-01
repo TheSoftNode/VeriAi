@@ -1,9 +1,12 @@
+// Load environment variables FIRST before any other imports
+import dotenv from 'dotenv';
+dotenv.config();
+
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import compression from 'compression';
-import dotenv from 'dotenv';
 import { createServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 
@@ -16,16 +19,16 @@ import { DatabaseService } from '@/services/DatabaseService';
 import { setupSwagger } from '@/config/swagger';
 import apiRoutes from '@/routes';
 
-// Load environment variables
-dotenv.config();
-
 const app = express();
 const server = createServer(app);
 
 // Initialize Socket.IO
 const io = new SocketIOServer(server, {
   cors: {
-    origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:3000'],
+    origin: process.env.CORS_ORIGIN?.split(',') || [
+      'http://localhost:3000',
+      'https://veri-ai.vercel.app'
+    ],
     credentials: true,
   },
 });
@@ -77,7 +80,10 @@ app.use(compression());
 
 // CORS configuration
 const corsOptions = {
-  origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:3000'],
+  origin: process.env.CORS_ORIGIN?.split(',') || [
+    'http://localhost:3000',
+    'https://veri-ai.vercel.app'
+  ],
   credentials: true,
   optionsSuccessStatus: 200,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],

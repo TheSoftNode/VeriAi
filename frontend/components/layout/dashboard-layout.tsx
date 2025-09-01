@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAccount } from 'wagmi';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -73,8 +73,13 @@ export function DashboardLayout({ children, title, description }: DashboardLayou
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>(mockNotifications);
+  const [mounted, setMounted] = useState(false);
   const { theme, setTheme } = useTheme();
   const { address, isConnected } = useAccount();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const toggleSidebar = () => setSidebarCollapsed(!sidebarCollapsed);
   const toggleMobileMenu = () => setMobileMenuOpen(!mobileMenuOpen);
@@ -275,24 +280,28 @@ export function DashboardLayout({ children, title, description }: DashboardLayou
             </DropdownMenu>
 
             {/* Theme toggle */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className="hidden sm:flex"
-            >
-              <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-              <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-            </Button>
+            {mounted && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                className="hidden sm:flex"
+              >
+                <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+                <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+              </Button>
+            )}
 
             {/* User Menu */}
             <div className="flex items-center space-x-2">
-              <div className="hidden lg:block text-right">
-                <p className="text-sm font-medium text-foreground">
-                  {address?.slice(0, 6)}...{address?.slice(-4)}
-                </p>
-                <p className="text-xs text-muted-foreground">Connected</p>
-              </div>
+              {mounted && address && (
+                <div className="hidden lg:block text-right">
+                  <p className="text-sm font-medium text-foreground">
+                    {address.slice(0, 6)}...{address.slice(-4)}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Connected</p>
+                </div>
+              )}
               <ConnectButton />
             </div>
           </div>

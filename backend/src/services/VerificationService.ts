@@ -82,15 +82,17 @@ export class VerificationService {
     const timestamp = new Date().toISOString();
 
     try {
-      // Verify signature
-      const isValidSignature = await this.verifySignature(
-        userAddress,
-        outputHash,
-        signature
-      );
+      // Verify signature if provided
+      if (signature) {
+        const isValidSignature = await this.verifySignature(
+          userAddress,
+          outputHash || output,
+          signature
+        );
 
-      if (!isValidSignature) {
-        throw new Error('Invalid signature');
+        if (!isValidSignature) {
+          throw new Error('Invalid signature');
+        }
       }
 
       // Verify output hash

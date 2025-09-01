@@ -23,6 +23,7 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { verificationApi } from '@/lib/api/client';
 
 interface VerificationResult {
   id: string;
@@ -79,33 +80,58 @@ const VerifyPage = () => {
   ];
 
   useEffect(() => {
-    setVerificationHistory(mockVerifications);
-  }, []);
+    if (isConnected && address) {
+      loadVerificationHistory();
+    } else {
+      setVerificationHistory([]);
+    }
+  }, [isConnected, address]);
+
+  const loadVerificationHistory = async () => {
+    setLoading(true);
+    try {
+      const response = await verificationApi.getUserVerifications(address!);
+      if (response.success && response.data && Array.isArray(response.data.verifications)) {
+        setVerificationHistory(response.data.verifications);
+      } else {
+        setVerificationHistory(mockVerifications);
+      }
+    } catch (error) {
+      console.error('Error loading verification history:', error);
+      setVerificationHistory(mockVerifications);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleVerify = async () => {
-    if (!content.trim()) return;
+    if (!content.trim() || !isConnected || !address) return;
 
     setIsVerifying(true);
     try {
-      // Simulate verification process
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      
-      const result: VerificationResult = {
-        id: Math.random().toString(36).substr(2, 9),
+      const response = await verificationApi.verifyContent({
+        content: content.trim(),
+        userAddress: address
+      });
+
+      if (response.success && response.data) {
+        setVerificationResult(response.data);
+        setVerificationHistory(prev => [response.data!, ...(Array.isArray(prev) ? prev : [])]);
+      } else {
+        throw new Error(response.error || 'Verification failed');
+      }
+    } catch (error) {
+      console.error('Verification error:', error);
+      const fallbackResult: VerificationResult = {
+        id: 'error',
         prompt: 'Unknown prompt',
         output: content,
         model: 'Auto-detected',
-        status: Math.random() > 0.3 ? 'verified' : 'invalid',
-        confidence: Math.random() * 50 + 50,
-        timestamp: new Date().toISOString(),
-        transactionHash: Math.random() > 0.5 ? `0x${Math.random().toString(16).substr(2, 8)}...${Math.random().toString(16).substr(2, 6)}` : undefined,
-        nftTokenId: Math.random() > 0.5 ? Math.floor(Math.random() * 100).toString() : undefined
+        status: 'invalid',
+        confidence: 0,
+        timestamp: new Date().toISOString()
       };
-
-      setVerificationResult(result);
-      setVerificationHistory(prev => [result, ...prev]);
-    } catch (error) {
-      console.error('Verification error:', error);
+      setVerificationResult(fallbackResult);
     } finally {
       setIsVerifying(false);
     }

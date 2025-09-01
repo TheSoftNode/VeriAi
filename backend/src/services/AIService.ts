@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import Groq from 'groq-sdk';
 import { createHash } from 'crypto';
 import { logger } from '@/utils/logger';
 import { DatabaseService } from './DatabaseService';
@@ -35,7 +36,7 @@ interface AIGeneration {
 interface AIModel {
   id: string;
   name: string;
-  provider: 'openai' | 'gemini';
+  provider: 'openai' | 'gemini' | 'groq' | 'deepseek';
   description: string;
   maxTokens: number;
   costPer1KTokens: number;
@@ -45,9 +46,19 @@ interface AIModel {
 export class AIService {
   private openai?: OpenAI;
   private gemini?: GoogleGenerativeAI;
+  private groq?: Groq;
+  private deepseek?: OpenAI;
   private db: DatabaseService;
 
   constructor() {
+    // Debug environment variables
+    logger.info('AIService initialization', {
+      hasOpenAI: !!process.env.OPENAI_API_KEY,
+      hasGemini: !!process.env.GEMINI_API_KEY,
+      hasGroq: !!process.env.GROQ_API_KEY,
+      hasDeepSeek: !!process.env.DEEPSEEK_API_KEY,
+    });
+
     // Only initialize if API keys are provided
     if (process.env.OPENAI_API_KEY) {
       this.openai = new OpenAI({
@@ -57,6 +68,19 @@ export class AIService {
 
     if (process.env.GEMINI_API_KEY) {
       this.gemini = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    }
+
+    if (process.env.GROQ_API_KEY) {
+      this.groq = new Groq({
+        apiKey: process.env.GROQ_API_KEY,
+      });
+    }
+
+    if (process.env.DEEPSEEK_API_KEY) {
+      this.deepseek = new OpenAI({
+        apiKey: process.env.DEEPSEEK_API_KEY,
+        baseURL: 'https://api.deepseek.com',
+      });
     }
 
     this.db = new DatabaseService();
@@ -103,6 +127,11 @@ export class AIService {
           throw new Error('Gemini API key not configured');
         }
         output = await this.generateWithGemini(prompt, model, maxTokens, temperature);
+      } else if (model.startsWith('llama-')) {
+        if (!this.groq) {
+          throw new Error('Groq API key not configured');
+        }
+        output = await this.generateWithGroq(prompt, model, maxTokens, temperature);
       } else {
         throw new Error(`Unsupported model: ${model}`);
       }
@@ -202,6 +231,52 @@ export class AIService {
   }
 
   /**
+   * Generate content using Groq
+   */
+  private async generateWithGroq(
+    prompt: string,
+    model: string,
+    maxTokens: number,
+    temperature: number
+  ): Promise<string> {
+    if (!this.groq) {
+      throw new Error('Groq not initialized');
+    }
+
+    const response = await this.groq.chat.completions.create({
+      model,
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: maxTokens,
+      temperature,
+    });
+
+    return response.choices[0]?.message?.content || '';
+  }
+
+  /**
+   * Generate content using DeepSeek
+   */
+  private async generateWithDeepSeek(
+    prompt: string,
+    model: string,
+    maxTokens: number,
+    temperature: number
+  ): Promise<string> {
+    if (!this.deepseek) {
+      throw new Error('DeepSeek not initialized');
+    }
+
+    const response = await this.deepseek.chat.completions.create({
+      model,
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: maxTokens,
+      temperature,
+    });
+
+    return response.choices[0]?.message?.content || '';
+  }
+
+  /**
    * Get available AI models
    */
   async getAvailableModels(): Promise<AIModel[]> {
@@ -241,6 +316,24 @@ export class AIService {
         maxTokens: 32768,
         costPer1KTokens: 0.007,
         available: !!process.env.GEMINI_API_KEY,
+      },
+      {
+        id: 'llama-3.3-70b-versatile',
+        name: 'Llama 3.3 70B',
+        provider: 'groq',
+        description: 'Latest Llama model, very fast inference',
+        maxTokens: 8192,
+        costPer1KTokens: 0.0008,
+        available: !!process.env.GROQ_API_KEY,
+      },
+      {
+        id: 'llama-3.1-8b-instant',
+        name: 'Llama 3.1 8B',
+        provider: 'groq',
+        description: 'Compact and ultra-fast model',
+        maxTokens: 8192,
+        costPer1KTokens: 0.0002,
+        available: !!process.env.GROQ_API_KEY,
       },
     ];
   }

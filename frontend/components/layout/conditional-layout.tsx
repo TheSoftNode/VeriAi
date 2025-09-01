@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { useAccount } from 'wagmi';
 import { Header } from './header';
@@ -14,7 +14,25 @@ interface ConditionalLayoutProps {
 export function ConditionalLayout({ children }: ConditionalLayoutProps) {
   const pathname = usePathname();
   const { isConnected } = useAccount();
+  const [mounted, setMounted] = useState(false);
   const isDashboard = pathname.startsWith('/dashboard');
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    // Show loading state during hydration to prevent mismatch
+    return (
+      <div className="relative flex min-h-screen flex-col">
+        <Header />
+        <main className="flex-1 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   if (isDashboard && !isConnected) {
     // Dashboard without wallet - show wallet connection page with header/footer

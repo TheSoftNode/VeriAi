@@ -132,4 +132,34 @@ export class AIController {
       throw createError.internal('Failed to validate output');
     }
   };
+
+  /**
+   * Get user's generation history
+   */
+  getUserGenerations = async (req: Request, res: Response): Promise<void> => {
+    const { address } = req.params;
+    const { page = 1, limit = 20 } = req.query;
+
+    try {
+      const result = await this.aiService.getUserGenerations(
+        address,
+        parseInt(page as string),
+        parseInt(limit as string)
+      );
+
+      res.status(200).json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      logger.error('Failed to fetch user generations', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        address,
+        page,
+        limit,
+      });
+
+      throw createError.internal('Failed to fetch user generations');
+    }
+  };
 }

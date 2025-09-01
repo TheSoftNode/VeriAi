@@ -388,114 +388,18 @@ export class ContractService {
    * Listen to contract events
    */
   setupEventListeners(): void {
-    // Listen to verification events
-    this.veriAIContract.on('VerificationRequested', (requestId, requester, prompt, model, fee, event) => {
-      const eventData = {
-        requestId: requestId.toString(),
-        requester,
-        prompt,
-        model,
-        fee: fee.toString(),
-        blockNumber: event.blockNumber,
-        transactionHash: event.transactionHash,
-      };
-
-      logger.info('Verification requested event', eventData);
-
-      // Emit WebSocket update
-      if (global.io) {
-        global.io.to(`verification-${requestId.toString()}`).emit('verification-update', {
-          type: 'requested',
-          data: eventData,
-        });
-      }
-    });
-
-    this.veriAIContract.on('VerificationFulfilled', (requestId, attestationId, outputHash, event) => {
-      const eventData = {
-        requestId: requestId.toString(),
-        attestationId: attestationId.toString(),
-        outputHash: outputHash.toString(),
-        blockNumber: event.blockNumber,
-        transactionHash: event.transactionHash,
-      };
-
-      logger.info('Verification fulfilled event', eventData);
-
-      // Emit WebSocket update
-      if (global.io) {
-        global.io.to(`verification-${requestId.toString()}`).emit('verification-update', {
-          type: 'fulfilled',
-          data: eventData,
-        });
-      }
-    });
-
-    // Listen to NFT events
-    this.nftContract.on('VerificationNFTMinted', (tokenId, recipient, model, verified, event) => {
-      const eventData = {
-        tokenId: tokenId.toString(),
-        recipient,
-        model,
-        verified,
-        blockNumber: event.blockNumber,
-        transactionHash: event.transactionHash,
-      };
-
-      logger.info('NFT minted event', eventData);
-
-      // Emit WebSocket update
-      if (global.io) {
-        global.io.to(`nft-${tokenId.toString()}`).emit('nft-update', {
-          type: 'minted',
-          data: eventData,
-        });
-      }
-    });
-
-    // Listen to FDC Relayer events
-    this.fdcRelayerContract.on('AttestationRequested', (veriAIRequestId, fdcAttestationId, requester, model, event) => {
-      const eventData = {
-        veriAIRequestId: veriAIRequestId.toString(),
-        fdcAttestationId: fdcAttestationId.toString(),
-        requester,
-        model,
-        blockNumber: event.blockNumber,
-        transactionHash: event.transactionHash,
-      };
-
-      logger.info('FDC attestation requested event', eventData);
-
-      // Emit WebSocket update
-      if (global.io) {
-        global.io.to(`verification-${veriAIRequestId.toString()}`).emit('attestation-update', {
-          type: 'requested',
-          data: eventData,
-        });
-      }
-    });
-
-    this.fdcRelayerContract.on('AttestationFulfilled', (veriAIRequestId, fdcAttestationId, success, output, event) => {
-      const eventData = {
-        veriAIRequestId: veriAIRequestId.toString(),
-        fdcAttestationId: fdcAttestationId.toString(),
-        success,
-        output,
-        blockNumber: event.blockNumber,
-        transactionHash: event.transactionHash,
-      };
-
-      logger.info('FDC attestation fulfilled event', eventData);
-
-      // Emit WebSocket update
-      if (global.io) {
-        global.io.to(`verification-${veriAIRequestId.toString()}`).emit('attestation-update', {
-          type: 'fulfilled',
-          data: eventData,
-        });
-      }
-    });
-
-    logger.info('Contract event listeners set up with WebSocket integration');
+    try {
+      logger.info('Setting up contract event listeners...');
+      
+      // TODO: Event listeners disabled temporarily due to ABI mismatch
+      // The deployed contracts may have different event signatures
+      // Enable these when contract ABIs are properly synced
+      
+      logger.info('Contract event listeners setup completed (currently disabled for API testing)');
+    } catch (error) {
+      logger.error('Failed to set up contract event listeners', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
   }
 }

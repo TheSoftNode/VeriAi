@@ -64,8 +64,10 @@ export const VERIFICATION_STATUSES = {
 } as const;
 
 export const AI_MODELS = [
-  { id: 'gpt-4', name: 'GPT-4', provider: 'OpenAI' },
+  { id: 'gpt-4-turbo-preview', name: 'GPT-4 Turbo', provider: 'OpenAI' },
   { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo', provider: 'OpenAI' },
-  { id: 'claude-3', name: 'Claude 3', provider: 'Anthropic' },
-  { id: 'claude-3-haiku', name: 'Claude 3 Haiku', provider: 'Anthropic' },
+  { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', provider: 'Google' },
+  { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', provider: 'Google' },
+  { id: 'llama-3.3-70b-versatile', name: 'Llama 3.3 70B', provider: 'Groq' },
+  { id: 'llama-3.1-8b-instant', name: 'Llama 3.1 8B', provider: 'Groq' },
 ] as const;

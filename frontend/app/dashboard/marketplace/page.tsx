@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -22,6 +22,8 @@ import {
   Zap
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { userApi } from '@/lib/api/client';
+import { useAccount } from 'wagmi';
 
 interface MarketplaceNFT {
   id: string;
@@ -41,8 +43,11 @@ interface MarketplaceNFT {
 }
 
 const MarketplacePage = () => {
+  const { address, isConnected } = useAccount();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [activeTab, setActiveTab] = useState('browse');
+  const [marketplaceNFTs, setMarketplaceNFTs] = useState<MarketplaceNFT[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const marketplaceStats = [
     { title: 'Items Listed', value: '2,847', change: '+156', icon: Store, color: 'text-primary' },
@@ -114,6 +119,22 @@ const MarketplacePage = () => {
       views: 312
     }
   ];
+
+  useEffect(() => {
+    loadMarketplaceData();
+  }, []);
+
+  const loadMarketplaceData = async () => {
+    setLoading(true);
+    try {
+      setMarketplaceNFTs(featuredNFTs);
+    } catch (error) {
+      console.error('Error loading marketplace data:', error);
+      setMarketplaceNFTs(featuredNFTs);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getRarityColor = (rarity: string) => {
     switch (rarity) {
@@ -224,7 +245,7 @@ const MarketplacePage = () => {
 
           {/* NFT Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {featuredNFTs.map((nft, index) => (
+            {marketplaceNFTs.map((nft, index) => (
               <motion.div
                 key={nft.id}
                 initial={{ opacity: 0, y: 20 }}

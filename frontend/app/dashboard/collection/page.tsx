@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -21,6 +21,8 @@ import {
   Zap
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { userApi } from '@/lib/api/client';
+import { useAccount } from 'wagmi';
 
 interface NFTMetadata {
   id: string;
@@ -37,7 +39,9 @@ interface NFTMetadata {
 }
 
 const CollectionPage = () => {
+  const { address, isConnected } = useAccount();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [loading, setLoading] = useState(false);
 
   const mockNFTs: NFTMetadata[] = [
     {
@@ -93,6 +97,33 @@ const CollectionPage = () => {
       rarity: 'common'
     }
   ];
+
+  const [nfts, setNfts] = useState<NFTMetadata[]>(mockNFTs);
+
+  useEffect(() => {
+    if (isConnected && address) {
+      loadNFTs();
+    } else {
+      setNfts(mockNFTs);
+    }
+  }, [isConnected, address]);
+
+  const loadNFTs = async () => {
+    setLoading(true);
+    try {
+      const response = await userApi.getNFTs(address!);
+      if (response.success && response.data && Array.isArray(response.data)) {
+        setNfts(response.data);
+      } else {
+        setNfts(mockNFTs);
+      }
+    } catch (error) {
+      console.error('Error loading NFTs:', error);
+      setNfts(mockNFTs);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getRarityColor = (rarity: string) => {
     switch (rarity) {
@@ -166,7 +197,7 @@ const CollectionPage = () => {
         <Card className="border-0 bg-card/50 backdrop-blur shadow-lg">
           <CardContent className="p-6 text-center">
             <Database className="h-8 w-8 text-primary mx-auto mb-2" />
-            <p className="text-2xl font-bold text-foreground">{mockNFTs.length}</p>
+            <p className="text-2xl font-bold text-foreground">{Array.isArray(nfts) ? nfts.length : 0}</p>
             <p className="text-sm text-muted-foreground">Total NFTs</p>
           </CardContent>
         </Card>
@@ -204,7 +235,7 @@ const CollectionPage = () => {
       >
         {viewMode === 'grid' ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {mockNFTs.map((nft, index) => (
+            {Array.isArray(nfts) ? nfts.map((nft, index) => (
               <motion.div
                 key={nft.id}
                 initial={{ opacity: 0, y: 20 }}
@@ -250,13 +281,13 @@ const CollectionPage = () => {
                   </CardContent>
                 </Card>
               </motion.div>
-            ))}
+            )) : null}
           </div>
         ) : (
           <Card className="border-0 bg-card/50 backdrop-blur shadow-lg">
             <CardContent className="p-6">
               <div className="space-y-4">
-                {mockNFTs.map((nft, index) => (
+                {Array.isArray(nfts) ? nfts.map((nft, index) => (
                   <motion.div
                     key={nft.id}
                     initial={{ opacity: 0, x: -20 }}
@@ -290,7 +321,7 @@ const CollectionPage = () => {
                       </Button>
                     </div>
                   </motion.div>
-                ))}
+                )) : null}
               </div>
             </CardContent>
           </Card>
@@ -298,7 +329,7 @@ const CollectionPage = () => {
       </motion.div>
 
       {/* Empty State */}
-      {mockNFTs.length === 0 && (
+      {!loading && (!Array.isArray(nfts) || nfts.length === 0) && (
         <Card className="border-0 bg-card/50 backdrop-blur shadow-lg">
           <CardContent className="p-12 text-center">
             <Database className="h-16 w-16 text-muted mx-auto mb-4" />

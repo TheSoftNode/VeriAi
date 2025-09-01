@@ -24,9 +24,18 @@ import {
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { APP_CONFIG } from '@/lib/config';
+import { userApi } from '@/lib/api/client';
 
 const DashboardPage = () => {
   const { address, isConnected } = useAccount();
+  const [stats, setStats] = useState([
+    { title: 'Total Verifications', value: '0', change: '+0%', icon: BarChart3, color: 'text-primary' },
+    { title: 'Success Rate', value: '0%', change: '+0%', icon: CheckCircle, color: 'text-chart-3' },
+    { title: 'NFTs Minted', value: '0', change: '+0%', icon: Trophy, color: 'text-chart-5' },
+    { title: 'Active Today', value: '0', change: '+0%', icon: Activity, color: 'text-accent' },
+  ]);
+  const [recentActivity, setRecentActivity] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
   
   const quickActions = [
     {
@@ -59,19 +68,48 @@ const DashboardPage = () => {
     },
   ];
 
-  const stats = [
-    { title: 'Total Verifications', value: '1,247', change: '+12%', icon: BarChart3, color: 'text-primary' },
-    { title: 'Success Rate', value: '98.2%', change: '+0.5%', icon: CheckCircle, color: 'text-chart-3' },
-    { title: 'NFTs Minted', value: '89', change: '+23%', icon: Trophy, color: 'text-chart-5' },
-    { title: 'Active Today', value: '156', change: '+8%', icon: Activity, color: 'text-accent' },
-  ];
+  useEffect(() => {
+    if (isConnected && address) {
+      loadDashboardData();
+    }
+  }, [isConnected, address]);
 
-  const recentActivity = [
-    { id: '1', type: 'verification', title: 'Content Verified', model: 'GPT-4', time: '2 hours ago', status: 'completed' },
-    { id: '2', type: 'generation', title: 'Content Generated', model: 'Claude-3', time: '4 hours ago', status: 'completed' },
-    { id: '3', type: 'nft', title: 'NFT Minted', model: 'GPT-3.5', time: '6 hours ago', status: 'completed' },
-    { id: '4', type: 'verification', title: 'Verification Pending', model: 'Gemini', time: '8 hours ago', status: 'processing' },
-  ];
+  const loadDashboardData = async () => {
+    setLoading(true);
+    try {
+      const [statsResponse, activityResponse] = await Promise.all([
+        userApi.getStats(address!),
+        userApi.getGenerations(address!)
+      ]);
+
+      if (statsResponse.success && statsResponse.data) {
+        const data = statsResponse.data;
+        setStats([
+          { title: 'Total Verifications', value: data.totalVerifications?.toString() || '0', change: `+${data.verificationsChange || 0}%`, icon: BarChart3, color: 'text-primary' },
+          { title: 'Success Rate', value: `${data.successRate || 0}%`, change: `+${data.successRateChange || 0}%`, icon: CheckCircle, color: 'text-chart-3' },
+          { title: 'NFTs Minted', value: data.nftsMinted?.toString() || '0', change: `+${data.nftsChange || 0}%`, icon: Trophy, color: 'text-chart-5' },
+          { title: 'Active Today', value: data.activeToday?.toString() || '0', change: `+${data.activeChange || 0}%`, icon: Activity, color: 'text-accent' },
+        ]);
+      }
+
+      if (activityResponse.success && activityResponse.data) {
+        const generations = activityResponse.data.generations || [];
+        const activityData = generations.slice(0, 4).map((gen: any, i: number) => ({
+          id: gen.id || `${i}`,
+          type: 'generation',
+          title: 'Content Generated',
+          model: gen.model || 'Unknown',
+          time: gen.createdAt ? new Date(gen.createdAt).toLocaleString() : 'Unknown',
+          status: gen.status || 'completed'
+        }));
+        setRecentActivity(activityData);
+      }
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-8">
@@ -199,36 +237,56 @@ const DashboardPage = () => {
         <Card className="border-0 bg-card/50 backdrop-blur shadow-lg">
           <CardContent className="p-6">
             <div className="space-y-4">
-              {recentActivity.map((activity, index) => (
-                <motion.div
-                  key={activity.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                  className="flex items-center justify-between p-4 bg-background/50 rounded-lg border border-border/50"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${
-                      activity.type === 'verification' ? 'from-primary to-accent' :
-                      activity.type === 'generation' ? 'from-chart-4 to-chart-4/70' :
-                      'from-chart-5 to-chart-5/70'
-                    } flex items-center justify-center`}>
-                      {activity.type === 'verification' && <Shield className="h-4 w-4 text-white" />}
-                      {activity.type === 'generation' && <Sparkles className="h-4 w-4 text-white" />}
-                      {activity.type === 'nft' && <Trophy className="h-4 w-4 text-white" />}
-                    </div>
-                    <div>
-                      <p className="font-medium text-sm text-foreground">{activity.title}</p>
-                      <p className="text-xs text-muted-foreground">{activity.model} • {activity.time}</p>
+              {loading ? (
+                Array.from({length: 4}).map((_, index) => (
+                  <div key={index} className="animate-pulse p-4 bg-background/50 rounded-lg border border-border/50">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-muted rounded-lg" />
+                      <div className="flex-1">
+                        <div className="h-4 bg-muted rounded mb-1" />
+                        <div className="h-3 bg-muted rounded w-1/2" />
+                      </div>
+                      <div className="w-16 h-6 bg-muted rounded" />
                     </div>
                   </div>
-                  <Badge variant={activity.status === 'completed' ? 'default' : 'secondary'}>
-                    {activity.status === 'completed' && <CheckCircle className="h-3 w-3 mr-1" />}
-                    {activity.status === 'processing' && <Clock className="h-3 w-3 mr-1" />}
-                    {activity.status}
-                  </Badge>
-                </motion.div>
-              ))}
+                ))
+              ) : recentActivity.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <Activity className="h-16 w-16 text-muted mx-auto mb-4" />
+                  <p>No recent activity</p>
+                </div>
+              ) : (
+                recentActivity.map((activity: any, index: number) => (
+                  <motion.div
+                    key={activity.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    className="flex items-center justify-between p-4 bg-background/50 rounded-lg border border-border/50"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${
+                        activity.type === 'verification' ? 'from-primary to-accent' :
+                        activity.type === 'generation' ? 'from-chart-4 to-chart-4/70' :
+                        'from-chart-5 to-chart-5/70'
+                      } flex items-center justify-center`}>
+                        {activity.type === 'verification' && <Shield className="h-4 w-4 text-white" />}
+                        {activity.type === 'generation' && <Sparkles className="h-4 w-4 text-white" />}
+                        {activity.type === 'nft' && <Trophy className="h-4 w-4 text-white" />}
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm text-foreground">{activity.title}</p>
+                        <p className="text-xs text-muted-foreground">{activity.model} • {activity.time}</p>
+                      </div>
+                    </div>
+                    <Badge variant={activity.status === 'completed' ? 'default' : 'secondary'}>
+                      {activity.status === 'completed' && <CheckCircle className="h-3 w-3 mr-1" />}
+                      {activity.status === 'processing' && <Clock className="h-3 w-3 mr-1" />}
+                      {activity.status}
+                    </Badge>
+                  </motion.div>
+                ))
+              )}
             </div>
           </CardContent>
         </Card>

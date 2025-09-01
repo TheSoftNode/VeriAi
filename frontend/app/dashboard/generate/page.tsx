@@ -25,33 +25,54 @@ import {
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { aiApi, verificationApi } from '@/lib/api/client';
-import { AI_MODELS } from '@/lib/config';
 
 interface GenerationRequest {
   id: string;
+  requestId: string;
   prompt: string;
   model: string;
   output?: string;
   status: 'pending' | 'processing' | 'completed' | 'failed';
+  userAddress: string;
+  outputHash?: string;
+  timestamp: string;
   metadata?: {
-    tokens: number;
-    cost: number;
-    processingTime: number;
+    maxTokens?: number;
+    temperature?: number;
+    completedAt?: string;
+    failedAt?: string;
+    error?: string;
   };
-  createdAt: string;
+  createdAt?: string;
   canVerify?: boolean;
+}
+
+interface AIModel {
+  id: string;
+  name: string;
+  provider: string;
+  description: string;
+  maxTokens: number;
+  costPer1KTokens: number;
+  available: boolean;
 }
 
 const GeneratePage = () => {
   const { address, isConnected } = useAccount();
   const [prompt, setPrompt] = useState('');
-  const [selectedModel, setSelectedModel] = useState('gpt-3.5-turbo');
+  const [selectedModel, setSelectedModel] = useState('gemini-1.5-flash');
   const [maxTokens, setMaxTokens] = useState([1000]);
   const [temperature, setTemperature] = useState([0.7]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generations, setGenerations] = useState<GenerationRequest[]>([]);
   const [currentGeneration, setCurrentGeneration] = useState<GenerationRequest | null>(null);
   const [loading, setLoading] = useState(false);
+  const [availableModels, setAvailableModels] = useState<AIModel[]>([]);
+  const [modelsLoading, setModelsLoading] = useState(true);
+
+  useEffect(() => {
+    loadAvailableModels();
+  }, []);
 
   useEffect(() => {
     if (isConnected && address) {
@@ -59,19 +80,46 @@ const GeneratePage = () => {
     }
   }, [isConnected, address]);
 
+  const loadAvailableModels = async () => {
+    setModelsLoading(true);
+    try {
+      const response = await aiApi.getModels();
+      if (response.success && response.data?.models) {
+        const available = response.data.models.filter((model: AIModel) => model.available);
+        setAvailableModels(available);
+        if (available.length > 0) {
+          if (!selectedModel || !available.find(m => m.id === selectedModel)) {
+            setSelectedModel(available[0].id);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error loading AI models:', error);
+      setAvailableModels([]);
+    } finally {
+      setModelsLoading(false);
+    }
+  };
+
   const loadGenerationHistory = async () => {
     setLoading(true);
     try {
-      setGenerations([]);
+      const response = await aiApi.getGenerations(address!);
+      if (response.success && response.data && Array.isArray(response.data.generations)) {
+        setGenerations(response.data.generations);
+      } else {
+        setGenerations([]);
+      }
     } catch (error) {
       console.error('Error loading generation history:', error);
+      setGenerations([]);
     } finally {
       setLoading(false);
     }
   };
 
   const handleGenerate = async () => {
-    if (!prompt.trim() || !isConnected || !address) return;
+    if (!prompt.trim() || !isConnected || !address || !selectedModel) return;
 
     setIsGenerating(true);
     try {
@@ -94,7 +142,7 @@ const GeneratePage = () => {
             
             if (generation.status === 'completed') {
               setIsGenerating(false);
-              setGenerations(prev => [generation, ...prev]);
+              setGenerations(prev => [generation, ...(Array.isArray(prev) ? prev : [])]);
             } else if (generation.status === 'failed') {
               setIsGenerating(false);
               setCurrentGeneration({
@@ -116,11 +164,13 @@ const GeneratePage = () => {
       setIsGenerating(false);
       setCurrentGeneration({
         id: 'error',
+        requestId: 'error',
         prompt,
         model: selectedModel,
         output: 'Generation failed. Please try again.',
         status: 'failed',
-        createdAt: new Date().toISOString()
+        userAddress: address,
+        timestamp: new Date().toISOString()
       });
     }
   };
@@ -228,7 +278,7 @@ const GeneratePage = () => {
                   <div>
                     <Label className="text-base font-medium">AI Model</Label>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
-                      {AI_MODELS.map((model) => (
+                      {availableModels.map((model) => (
                         <div
                           key={model.id}
                           onClick={() => setSelectedModel(model.id)}
@@ -243,14 +293,27 @@ const GeneratePage = () => {
                             <Badge variant="outline">{model.provider}</Badge>
                           </div>
                           <p className="text-sm text-muted-foreground">
-                            {model.id === 'gpt-4' && 'Most advanced, higher quality responses'}
-                            {model.id === 'gpt-3.5-turbo' && 'Fast and efficient, good for most tasks'}
-                            {model.id === 'claude-3' && 'Great for analysis and reasoning'}
-                            {model.id === 'claude-3-haiku' && 'Fast and cost-effective'}
+                            {model.description}
                           </p>
+                          <div className="flex justify-between text-xs text-muted-foreground mt-2">
+                            <span>Max: {model.maxTokens} tokens</span>
+                            <span>${model.costPer1KTokens}/1K tokens</span>
+                          </div>
                         </div>
                       ))}
                     </div>
+                    {modelsLoading && (
+                      <div className="text-center py-4 text-muted-foreground">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto mb-2" />
+                        <p>Loading AI models...</p>
+                      </div>
+                    )}
+                    {!modelsLoading && availableModels.length === 0 && (
+                      <div className="text-center py-4 text-muted-foreground">
+                        <AlertTriangle className="h-8 w-8 mx-auto mb-2" />
+                        <p>No AI models available. Check your API key configuration.</p>
+                      </div>
+                    )}
                   </div>
 
                   {/* Advanced Settings */}
@@ -296,7 +359,7 @@ const GeneratePage = () => {
                   {/* Generate Button */}
                   <Button
                     onClick={handleGenerate}
-                    disabled={isGenerating || !prompt.trim()}
+                    disabled={isGenerating || !prompt.trim() || !selectedModel || availableModels.length === 0 || modelsLoading}
                     className="w-full group"
                     size="lg"
                   >
@@ -304,6 +367,21 @@ const GeneratePage = () => {
                       <>
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
                         Generating...
+                      </>
+                    ) : modelsLoading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2" />
+                        Loading Models...
+                      </>
+                    ) : availableModels.length === 0 ? (
+                      <>
+                        <AlertTriangle className="h-4 w-4 mr-2" />
+                        No Models Available
+                      </>
+                    ) : !selectedModel ? (
+                      <>
+                        <AlertTriangle className="h-4 w-4 mr-2" />
+                        Select Model
                       </>
                     ) : (
                       <>
@@ -368,7 +446,7 @@ const GeneratePage = () => {
                           {currentGeneration.status}
                         </Badge>
                         <span className="text-xs text-muted-foreground">
-                          {new Date(currentGeneration.createdAt).toLocaleTimeString()}
+                          {new Date(currentGeneration.timestamp || currentGeneration.createdAt).toLocaleTimeString()}
                         </span>
                       </div>
 
@@ -476,7 +554,7 @@ const GeneratePage = () => {
             </Card>
           ) : (
             <div className="space-y-4">
-              {generations.map((generation, index) => (
+              {Array.isArray(generations) ? generations.map((generation, index) => (
                 <motion.div
                   key={generation.id}
                   initial={{ opacity: 0, y: 20 }}
@@ -505,7 +583,7 @@ const GeneratePage = () => {
                           </p>
                         </div>
                         <span className="text-xs text-muted-foreground">
-                          {new Date(generation.createdAt).toLocaleDateString()}
+                          {new Date(generation.timestamp || generation.createdAt).toLocaleDateString()}
                         </span>
                       </div>
 
@@ -548,7 +626,7 @@ const GeneratePage = () => {
                     </CardContent>
                   </Card>
                 </motion.div>
-              ))}
+              )) : null}
             </div>
           )}
         </TabsContent>

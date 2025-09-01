@@ -44,7 +44,7 @@ router.post(
       .withMessage('Prompt must be between 1 and 2000 characters'),
     body('model')
       .isString()
-      .isIn(['gpt-4', 'gpt-3.5-turbo', 'claude-3', 'claude-3-haiku'])
+      .isIn(['gpt-4-turbo-preview', 'gpt-3.5-turbo', 'gemini-1.5-flash', 'gemini-1.5-pro', 'llama-3.3-70b-versatile', 'llama-3.1-8b-instant'])
       .withMessage('Invalid AI model'),
     body('userAddress')
       .isEthereumAddress()

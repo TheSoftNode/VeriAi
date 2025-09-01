@@ -5,7 +5,14 @@ import { validateRequest } from '@/middleware/validation';
 import { AIController } from '@/controllers/AIController';
 
 const router = Router();
-const aiController = new AIController();
+
+// Lazy initialization to ensure environment variables are loaded
+const getAIController = () => {
+  if (!getAIController._instance) {
+    getAIController._instance = new AIController();
+  }
+  return getAIController._instance;
+};
 
 /**
  * @swagger
@@ -42,7 +49,7 @@ router.post(
       .withMessage('Prompt must be between 1 and 2000 characters'),
     body('model')
       .isString()
-      .isIn(['gpt-4', 'gpt-3.5-turbo', 'claude-3', 'claude-3-haiku'])
+      .isIn(['gpt-4-turbo-preview', 'gpt-3.5-turbo', 'gemini-1.5-flash', 'gemini-1.5-pro', 'llama-3.3-70b-versatile', 'llama-3.1-8b-instant'])
       .withMessage('Invalid AI model'),
     body('userAddress')
       .isEthereumAddress()
@@ -57,7 +64,33 @@ router.post(
       .withMessage('Temperature must be between 0 and 2'),
   ],
   validateRequest,
-  asyncHandler(aiController.generateContent)
+  asyncHandler((req, res) => getAIController().generateContent(req, res))
+);
+
+/**
+ * @swagger
+ * /api/v1/ai/env-check:
+ *   get:
+ *     summary: Check environment configuration
+ *     tags: [AI]
+ *     responses:
+ *       200:
+ *         description: Environment status
+ */
+router.get(
+  '/env-check',
+  asyncHandler(async (req, res) => {
+    res.json({
+      success: true,
+      data: {
+        hasOpenAI: !!process.env.OPENAI_API_KEY,
+        hasGemini: !!process.env.GEMINI_API_KEY,
+        hasGroq: !!process.env.GROQ_API_KEY,
+        hasDeepSeek: !!process.env.DEEPSEEK_API_KEY,
+        geminiKeyLength: process.env.GEMINI_API_KEY?.length || 0,
+      }
+    });
+  })
 );
 
 /**
@@ -76,7 +109,7 @@ router.post(
  */
 router.get(
   '/models',
-  asyncHandler(aiController.getModels)
+  asyncHandler((req, res) => getAIController().getModels(req, res))
 );
 
 /**
@@ -111,11 +144,11 @@ router.get(
   '/generation/:requestId',
   [
     param('requestId')
-      .isUUID()
+      .matches(/^ai_\d+_[a-z0-9]+$/)
       .withMessage('Invalid request ID format'),
   ],
   validateRequest,
-  asyncHandler(aiController.getGeneration)
+  asyncHandler((req, res) => getAIController().getGeneration(req, res))
 );
 
 /**
@@ -161,7 +194,53 @@ router.post(
     body('expectedHash').isString().isLength({ min: 64, max: 66 }),
   ],
   validateRequest,
-  asyncHandler(aiController.validateOutput)
+  asyncHandler((req, res) => getAIController().validateOutput(req, res))
+);
+
+/**
+ * @swagger
+ * /api/v1/ai/user/{address}/generations:
+ *   get:
+ *     summary: Get user's generation history
+ *     tags: [AI]
+ *     parameters:
+ *       - in: path
+ *         name: address
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: User's wallet address
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *     responses:
+ *       200:
+ *         description: User generation history
+ */
+router.get(
+  '/user/:address/generations',
+  [
+    param('address')
+      .isEthereumAddress()
+      .withMessage('Invalid Ethereum address'),
+    query('page')
+      .optional()
+      .isInt({ min: 1 })
+      .withMessage('Page must be a positive integer'),
+    query('limit')
+      .optional()
+      .isInt({ min: 1, max: 100 })
+      .withMessage('Limit must be between 1 and 100'),
+  ],
+  validateRequest,
+  asyncHandler((req, res) => getAIController().getUserGenerations(req, res))
 );
 
 export default router;

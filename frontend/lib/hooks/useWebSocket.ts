@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { APP_CONFIG } from '@/lib/config';
+import { io, Socket } from 'socket.io-client';
 
 export interface WebSocketMessage {
   type: string;
@@ -31,14 +32,14 @@ export function useWebSocket(url?: string, options: UseWebSocketOptions = {}) {
   const [lastMessage, setLastMessage] = useState<WebSocketMessage | null>(null);
   const [reconnectAttempts, setReconnectAttempts] = useState(0);
 
-  const wsRef = useRef<WebSocket | null>(null);
+  const socketRef = useRef<Socket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isManuallyClosedRef = useRef(false);
 
-  const wsUrl = url || `${APP_CONFIG.api.baseUrl.replace('http', 'ws')}/ws`;
+  const socketUrl = url || APP_CONFIG.api.baseUrl;
 
   const connect = useCallback(() => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
+    if (socketRef.current?.connected) {
       return;
     }
 
@@ -46,62 +47,91 @@ export function useWebSocket(url?: string, options: UseWebSocketOptions = {}) {
     isManuallyClosedRef.current = false;
 
     try {
-      wsRef.current = new WebSocket(wsUrl);
+      socketRef.current = io(socketUrl, {
+        transports: ['websocket', 'polling'],
+        timeout: 20000,
+        reconnection: true,
+        reconnectionAttempts: maxReconnectAttempts,
+        reconnectionDelay: reconnectInterval,
+      });
 
-      wsRef.current.onopen = () => {
+      socketRef.current.on('connect', () => {
         setIsConnected(true);
         setConnectionState('connected');
         setReconnectAttempts(0);
         onConnect?.();
-      };
+      });
 
-      wsRef.current.onmessage = (event) => {
+      socketRef.current.on('message', (data: any) => {
         try {
-          const message: WebSocketMessage = JSON.parse(event.data);
+          const message: WebSocketMessage = {
+            type: data.type || 'message',
+            data: data.data || data,
+            timestamp: Date.now(),
+          };
           setLastMessage(message);
           onMessage?.(message);
         } catch (error) {
-          console.error('Failed to parse WebSocket message:', error);
+          console.error('Failed to parse Socket.IO message:', error);
         }
-      };
+      });
 
-      wsRef.current.onclose = () => {
+      socketRef.current.on('disconnect', () => {
         setIsConnected(false);
         setConnectionState('disconnected');
         onDisconnect?.();
+      });
 
-        // Auto-reconnect if not manually closed
-        if (!isManuallyClosedRef.current && reconnectAttempts < maxReconnectAttempts) {
-          reconnectTimeoutRef.current = setTimeout(() => {
-            setReconnectAttempts(prev => prev + 1);
-            connect();
-          }, reconnectInterval);
-        }
-      };
-
-      wsRef.current.onerror = (error) => {
+      socketRef.current.on('connect_error', (error) => {
         setConnectionState('error');
-        onError?.(error);
-      };
+        onError?.(error as any);
+        
+        if (reconnectAttempts < maxReconnectAttempts) {
+          setReconnectAttempts(prev => prev + 1);
+        }
+      });
+
+      // Listen for verification updates
+      socketRef.current.on('verification-update', (data) => {
+        const message: WebSocketMessage = {
+          type: 'verification-update',
+          data,
+          timestamp: Date.now(),
+        };
+        setLastMessage(message);
+        onMessage?.(message);
+      });
+
+      // Listen for NFT updates
+      socketRef.current.on('nft-update', (data) => {
+        const message: WebSocketMessage = {
+          type: 'nft-update',
+          data,
+          timestamp: Date.now(),
+        };
+        setLastMessage(message);
+        onMessage?.(message);
+      });
+
     } catch (error) {
       setConnectionState('error');
-      console.error('Failed to create WebSocket connection:', error);
+      console.error('Failed to create Socket.IO connection:', error);
     }
-  }, [wsUrl, onMessage, onConnect, onDisconnect, onError, reconnectInterval, maxReconnectAttempts, reconnectAttempts]);
+  }, [socketUrl, onMessage, onConnect, onDisconnect, onError, reconnectInterval, maxReconnectAttempts, reconnectAttempts]);
 
   const disconnect = useCallback(() => {
     isManuallyClosedRef.current = true;
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
     }
-    if (wsRef.current) {
-      wsRef.current.close();
+    if (socketRef.current) {
+      socketRef.current.disconnect();
     }
   }, []);
 
   const sendMessage = useCallback((message: any) => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify(message));
+    if (socketRef.current?.connected) {
+      socketRef.current.emit('message', message);
       return true;
     }
     return false;
@@ -144,8 +174,8 @@ export function useVerificationWebSocket(verificationId?: string) {
     onConnect: () => {
       if (verificationId) {
         sendMessage({
-          type: 'subscribe_verification',
-          data: { verificationId }
+          type: 'subscribe-verification',
+          data: verificationId
         });
       }
     }
@@ -154,8 +184,8 @@ export function useVerificationWebSocket(verificationId?: string) {
   const subscribeToVerification = useCallback((id: string) => {
     if (isConnected) {
       sendMessage({
-        type: 'subscribe_verification',
-        data: { verificationId: id }
+        type: 'subscribe-verification',
+        data: id
       });
     }
   }, [isConnected, sendMessage]);

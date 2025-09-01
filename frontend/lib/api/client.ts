@@ -150,12 +150,33 @@ export const aiApi = {
   }): Promise<APIResponse<any>> {
     return apiClient.post('/api/v1/ai/validate', data);
   },
+
+  async getGenerations(address: string, options?: {
+    page?: number;
+    limit?: number;
+  }): Promise<APIResponse<{ generations: any[]; total: number; page: number; totalPages: number }>> {
+    const params: Record<string, string> = {};
+    if (options?.page) params.page = options.page.toString();
+    if (options?.limit) params.limit = options.limit.toString();
+
+    return apiClient.get(`/api/v1/ai/user/${address}/generations`, params);
+  },
 };
 
 // Verification API - matches backend /api/v1/verification routes
 export const verificationApi = {
   async requestVerification(request: VerificationRequest): Promise<APIResponse<VerificationResult>> {
     return apiClient.post<VerificationResult>('/api/v1/verification/request', request);
+  },
+
+  async verifyContent(request: { content: string; userAddress: string; prompt?: string; model?: string }): Promise<APIResponse<VerificationResult>> {
+    // For content verification, we need to extract prompt and output from content
+    return apiClient.post<VerificationResult>('/api/v1/verification/request', {
+      prompt: request.prompt || 'Verify this content',
+      model: request.model || 'gemini-1.5-flash',
+      userAddress: request.userAddress,
+      output: request.content,
+    });
   },
 
   async getVerification(requestId: string): Promise<APIResponse<VerificationResult>> {
@@ -184,6 +205,11 @@ export const verificationApi = {
 
   async getStats(): Promise<APIResponse<any>> {
     return apiClient.get('/api/v1/verification/stats');
+  },
+
+  // Alias for backward compatibility
+  async getVerifications(address: string, options?: { page?: number; limit?: number; status?: string }): Promise<APIResponse<{ verifications: VerificationResult[]; total: number; page: number; limit: number }>> {
+    return this.getUserVerifications(address, options);
   },
 };
 
@@ -223,6 +249,10 @@ export const fdcApi = {
 
 // Auth API - matches backend /api/v1/auth routes
 export const authApi = {
+  async generateNonce(address: string): Promise<APIResponse<{ nonce: string; message: string }>> {
+    return apiClient.post(`/api/v1/auth/nonce/${address}`, {});
+  },
+
   async login(data: {
     address: string;
     signature: string;
@@ -230,16 +260,68 @@ export const authApi = {
   }): Promise<APIResponse<{ token: string; user: any }>> {
     return apiClient.post('/api/v1/auth/login', data);
   },
+
+  async logout(): Promise<APIResponse<any>> {
+    return apiClient.post('/api/v1/auth/logout');
+  },
+
+  async getProfile(address: string): Promise<APIResponse<any>> {
+    return apiClient.get(`/api/v1/auth/profile/${address}`);
+  },
+
+  async refreshToken(): Promise<APIResponse<{ token: string }>> {
+    return apiClient.post('/api/v1/auth/refresh');
+  },
+
+  async verifyToken(token: string): Promise<APIResponse<{ address: string; valid: boolean }>> {
+    return apiClient.post('/api/v1/auth/verify', { token });
+  },
 };
 
 // User API - matches backend /api/v1/user routes
 export const userApi = {
-  async getProfile(address: string): Promise<APIResponse<any>> {
-    return apiClient.get(`/api/v1/user/${address}`);
+  async getGenerations(address: string, options?: {
+    page?: number;
+    limit?: number;
+  }): Promise<APIResponse<{ generations: any[]; total: number; page: number; totalPages: number }>> {
+    const params: Record<string, string> = {};
+    if (options?.page) params.page = options.page.toString();
+    if (options?.limit) params.limit = options.limit.toString();
+
+    return apiClient.get(`/api/v1/user/${address}/generations`, params);
   },
 
-  async updateProfile(address: string, data: any): Promise<APIResponse<any>> {
-    return apiClient.put(`/api/v1/user/${address}`, data);
+  async getVerifications(address: string, options?: {
+    page?: number;
+    limit?: number;
+    status?: string;
+  }): Promise<APIResponse<{ verifications: any[]; total: number; page: number; totalPages: number }>> {
+    const params: Record<string, string> = {};
+    if (options?.page) params.page = options.page.toString();
+    if (options?.limit) params.limit = options.limit.toString();
+    if (options?.status) params.status = options.status;
+
+    return apiClient.get(`/api/v1/user/${address}/verifications`, params);
+  },
+
+  async getNFTs(address: string, options?: {
+    page?: number;
+    limit?: number;
+  }): Promise<APIResponse<{ nfts: any[]; total: number; page: number; totalPages: number }>> {
+    const params: Record<string, string> = {};
+    if (options?.page) params.page = options.page.toString();
+    if (options?.limit) params.limit = options.limit.toString();
+
+    return apiClient.get(`/api/v1/user/${address}/nfts`, params);
+  },
+
+  async getStats(address: string): Promise<APIResponse<{
+    totalGenerations: number;
+    totalVerifications: number;
+    totalNFTs: number;
+    lastActivity: string;
+  }>> {
+    return apiClient.get(`/api/v1/user/${address}/stats`);
   },
 };
 
