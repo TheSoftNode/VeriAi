@@ -24,8 +24,8 @@ export function Providers({ children }: ProvidersProps) {
           <WalletProvider>
             <ThemeProvider
               attribute="class"
-              defaultTheme="system"
-              enableSystem
+              defaultTheme="dark"
+              enableSystem={false}
               disableTransitionOnChange
             >
               {children}
