@@ -361,6 +361,14 @@ const options: swaggerJSDoc.Options = {
     },
     tags: [
       {
+        name: 'Auth',
+        description: 'Authentication and user management endpoints',
+      },
+      {
+        name: 'User',
+        description: 'User data and statistics endpoints',
+      },
+      {
         name: 'AI',
         description: 'AI content generation endpoints',
       },
@@ -371,6 +379,10 @@ const options: swaggerJSDoc.Options = {
       {
         name: 'NFT',
         description: 'NFT minting and collection management endpoints',
+      },
+      {
+        name: 'FDC',
+        description: 'Flare Data Connector attestation endpoints',
       },
       {
         name: 'Health',

@@ -192,3 +192,33 @@ const UserStatsSchema = new Schema<IUserStats>({
 });
 
 export const UserStats = mongoose.model<IUserStats>('UserStats', UserStatsSchema);
+
+// User Model (for authentication)
+export interface IUser extends Document {
+  address: string;
+  nonce: string;
+  createdAt: Date;
+  lastLoginAt: Date;
+  lastActivity: Date;
+  isActive: boolean;
+  metadata?: Record<string, any>;
+  updatedAt: Date;
+}
+
+const UserSchema = new Schema<IUser>({
+  address: { type: String, required: true, unique: true, index: true },
+  nonce: { type: String, required: true },
+  lastLoginAt: { type: Date },
+  lastActivity: { type: Date, default: Date.now },
+  isActive: { type: Boolean, default: true },
+  metadata: { type: Schema.Types.Mixed, default: {} }
+}, {
+  timestamps: true
+});
+
+// Indexes for performance
+UserSchema.index({ address: 1 });
+UserSchema.index({ lastActivity: -1 });
+UserSchema.index({ isActive: 1, lastActivity: -1 });
+
+export const User = mongoose.model<IUser>('User', UserSchema);

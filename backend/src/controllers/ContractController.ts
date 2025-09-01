@@ -176,4 +176,60 @@ export class ContractController {
       throw createError.internal('Failed to fetch contract statistics');
     }
   };
+
+  /**
+   * Verify FDC attestation
+   */
+  verifyAttestation = async (req: Request, res: Response): Promise<void> => {
+    const { attestationId, proof } = req.body;
+
+    try {
+      // In a real implementation, this would verify the attestation on-chain
+      // For now, we'll simulate the verification process
+      const isValid = Array.isArray(proof) && proof.length > 0;
+
+      res.status(200).json({
+        success: true,
+        data: {
+          verified: isValid,
+          attestationId,
+          timestamp: new Date().toISOString(),
+        },
+      });
+    } catch (error) {
+      logger.error('Failed to verify attestation', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        attestationId,
+      });
+
+      throw createError.internal('Failed to verify attestation');
+    }
+  };
+
+  /**
+   * Get FDC network statistics
+   */
+  getFDCStats = async (req: Request, res: Response): Promise<void> => {
+    try {
+      // In a real implementation, this would fetch from FDC network
+      const stats = {
+        totalAttestations: 1500,
+        confirmedAttestations: 1350,
+        averageConfirmationTime: 45.2,
+        networkHealth: 'healthy' as const,
+        lastUpdate: new Date().toISOString(),
+      };
+
+      res.status(200).json({
+        success: true,
+        data: stats,
+      });
+    } catch (error) {
+      logger.error('Failed to fetch FDC statistics', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+
+      throw createError.internal('Failed to fetch FDC statistics');
+    }
+  };
 }

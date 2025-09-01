@@ -11,7 +11,9 @@ import {
   NFT,
   INFT,
   UserStats,
-  IUserStats
+  IUserStats,
+  User,
+  IUser
 } from '@/models';
 
 // Database interfaces
@@ -739,6 +741,115 @@ export class DatabaseService {
     }
   }
 
+  // User management methods
+  async upsertUser(userData: {
+    address: string;
+    nonce: string;
+    lastActivity?: Date;
+  }): Promise<IUser> {
+    await this.ensureConnection();
+    try {
+      const doc = await User.findOneAndUpdate(
+        { address: userData.address },
+        {
+          $set: {
+            nonce: userData.nonce,
+            lastActivity: userData.lastActivity || new Date(),
+          },
+        },
+        { upsert: true, new: true }
+      );
+
+      logger.debug('User upserted', { address: userData.address });
+      return doc;
+    } catch (error) {
+      logger.error('Failed to upsert user', {
+        address: userData.address,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      throw error;
+    }
+  }
+
+  async getUser(address: string): Promise<IUser | null> {
+    await this.ensureConnection();
+    try {
+      const user = await User.findOne({ address });
+      return user;
+    } catch (error) {
+      logger.error('Failed to get user', {
+        address,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      return null;
+    }
+  }
+
+  async updateUser(address: string, updates: Partial<{
+    nonce: string;
+    lastLoginAt: Date;
+    lastActivity: Date;
+    isActive: boolean;
+    metadata: Record<string, any>;
+  }>): Promise<IUser | null> {
+    await this.ensureConnection();
+    try {
+      const user = await User.findOneAndUpdate(
+        { address },
+        { $set: updates },
+        { new: true }
+      );
+
+      logger.debug('User updated', { address });
+      return user;
+    } catch (error) {
+      logger.error('Failed to update user', {
+        address,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      return null;
+    }
+  }
+
+  async countUserGenerations(userAddress: string): Promise<number> {
+    await this.ensureConnection();
+    try {
+      return await AIGeneration.countDocuments({ userAddress });
+    } catch (error) {
+      logger.error('Failed to count user generations', {
+        userAddress,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      return 0;
+    }
+  }
+
+  async countUserVerifications(userAddress: string): Promise<number> {
+    await this.ensureConnection();
+    try {
+      return await Verification.countDocuments({ userAddress });
+    } catch (error) {
+      logger.error('Failed to count user verifications', {
+        userAddress,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      return 0;
+    }
+  }
+
+  async countUserNFTs(userAddress: string): Promise<number> {
+    await this.ensureConnection();
+    try {
+      return await NFT.countDocuments({ owner: userAddress });
+    } catch (error) {
+      logger.error('Failed to count user NFTs', {
+        userAddress,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      return 0;
+    }
+  }
+
   // Utility methods
   async clear(): Promise<void> {
     try {
@@ -747,7 +858,8 @@ export class DatabaseService {
         Verification.deleteMany({}),
         Challenge.deleteMany({}),
         NFT.deleteMany({}),
-        UserStats.deleteMany({})
+        UserStats.deleteMany({}),
+        User.deleteMany({})
       ]);
       
       logger.info('Database cleared');

@@ -22,9 +22,58 @@ const getContractService = () => {
 };
 
 /**
- * @route   GET /api/user/:userAddress/generations
- * @desc    Get user's AI generations
- * @access  Public
+ * @swagger
+ * /api/v1/user/{userAddress}/generations:
+ *   get:
+ *     summary: Get user's AI generations
+ *     tags: [User]
+ *     parameters:
+ *       - in: path
+ *         name: userAddress
+ *         required: true
+ *         schema:
+ *           type: string
+ *           pattern: '^0x[a-fA-F0-9]{40}$'
+ *         description: Ethereum wallet address
+ *         example: '0x742d35Cc6634C0532925a3b8D5c226dEB6323BCC'
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *           default: 20
+ *         description: Items per page
+ *     responses:
+ *       200:
+ *         description: User's AI generations
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         generations:
+ *                           type: array
+ *                           items:
+ *                             $ref: '#/components/schemas/GenerationResult'
+ *                         total:
+ *                           type: integer
+ *                         page:
+ *                           type: integer
+ *                         totalPages:
+ *                           type: integer
  */
 router.get(
   '/:userAddress/generations',
@@ -48,9 +97,64 @@ router.get(
 );
 
 /**
- * @route   GET /api/user/:userAddress/verifications
- * @desc    Get user's verifications
- * @access  Public
+ * @swagger
+ * /api/v1/user/{userAddress}/verifications:
+ *   get:
+ *     summary: Get user's verifications
+ *     tags: [User]
+ *     parameters:
+ *       - in: path
+ *         name: userAddress
+ *         required: true
+ *         schema:
+ *           type: string
+ *           pattern: '^0x[a-fA-F0-9]{40}$'
+ *         description: Ethereum wallet address
+ *         example: '0x742d35Cc6634C0532925a3b8D5c226dEB6323BCC'
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *           default: 20
+ *         description: Items per page
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [pending, verified, challenged, rejected]
+ *         description: Filter by verification status
+ *     responses:
+ *       200:
+ *         description: User's verifications
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         verifications:
+ *                           type: array
+ *                           items:
+ *                             $ref: '#/components/schemas/Verification'
+ *                         total:
+ *                           type: integer
+ *                         page:
+ *                           type: integer
+ *                         totalPages:
+ *                           type: integer
  */
 router.get(
   '/:userAddress/verifications',
@@ -75,9 +179,58 @@ router.get(
 );
 
 /**
- * @route   GET /api/user/:userAddress/nfts
- * @desc    Get user's NFTs
- * @access  Public
+ * @swagger
+ * /api/v1/user/{userAddress}/nfts:
+ *   get:
+ *     summary: Get user's NFT collection
+ *     tags: [User]
+ *     parameters:
+ *       - in: path
+ *         name: userAddress
+ *         required: true
+ *         schema:
+ *           type: string
+ *           pattern: '^0x[a-fA-F0-9]{40}$'
+ *         description: Ethereum wallet address
+ *         example: '0x742d35Cc6634C0532925a3b8D5c226dEB6323BCC'
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *           default: 20
+ *         description: Items per page
+ *     responses:
+ *       200:
+ *         description: User's NFT collection
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         nfts:
+ *                           type: array
+ *                           items:
+ *                             $ref: '#/components/schemas/NFT'
+ *                         total:
+ *                           type: integer
+ *                         page:
+ *                           type: integer
+ *                         totalPages:
+ *                           type: integer
  */
 router.get(
   '/:userAddress/nfts',
@@ -101,9 +254,46 @@ router.get(
 );
 
 /**
- * @route   GET /api/user/:userAddress/stats
- * @desc    Get user statistics
- * @access  Public
+ * @swagger
+ * /api/v1/user/{userAddress}/stats:
+ *   get:
+ *     summary: Get user statistics
+ *     tags: [User]
+ *     parameters:
+ *       - in: path
+ *         name: userAddress
+ *         required: true
+ *         schema:
+ *           type: string
+ *           pattern: '^0x[a-fA-F0-9]{40}$'
+ *         description: Ethereum wallet address
+ *         example: '0x742d35Cc6634C0532925a3b8D5c226dEB6323BCC'
+ *     responses:
+ *       200:
+ *         description: User statistics
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         totalGenerations:
+ *                           type: integer
+ *                           example: 10
+ *                         totalVerifications:
+ *                           type: integer
+ *                           example: 7
+ *                         totalNFTs:
+ *                           type: integer
+ *                           example: 5
+ *                         lastActivity:
+ *                           type: string
+ *                           format: date-time
+ *                           example: '2025-01-15T10:30:00Z'
  */
 router.get(
   '/:userAddress/stats',
