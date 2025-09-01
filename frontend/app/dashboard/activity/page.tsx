@@ -296,7 +296,7 @@ export default function ActivityPage() {
                             <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
                               {activity.details.transactionHash && (
                                 <button
-                                  onClick={() => window.open(`https://coston2.testnet.flarescan.com/tx/${activity.details.transactionHash}`, '_blank')}
+                                  onClick={() => window.open(`https://coston2.testnet.flarescan.com/tx/${activity.details?.transactionHash}`, '_blank')}
                                   className="flex items-center gap-1 hover:text-foreground transition-colors"
                                 >
                                   <ExternalLink className="h-3 w-3" />

@@ -404,7 +404,7 @@ export class VerificationService {
       }
 
       const updateData = {
-        status: verified ? 'verified' : 'rejected' as const,
+        status: (verified ? 'verified' : 'rejected') as 'verified' | 'rejected',
         verifiedAt: verified ? new Date().toISOString() : undefined,
         attestationId: fdcAttestationId,
         fdcProof: proof,

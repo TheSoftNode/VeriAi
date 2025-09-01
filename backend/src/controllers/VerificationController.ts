@@ -266,8 +266,8 @@ export class VerificationController {
       }
 
       // Check if retry is allowed
-      if (verification.status !== 'failed' && verification.status !== 'expired') {
-        throw createError.badRequest('Can only retry failed or expired verifications');
+      if (verification.status !== 'rejected') {
+        throw createError.badRequest('Can only retry rejected verifications');
       }
 
       // Retry the verification

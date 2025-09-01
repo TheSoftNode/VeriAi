@@ -389,51 +389,55 @@ export class ContractService {
    */
   setupEventListeners(): void {
     // Listen to verification events
-    this.veriAIContract.on('VerificationSubmitted', (verificationId, user, model, event) => {
+    this.veriAIContract.on('VerificationRequested', (requestId, requester, prompt, model, fee, event) => {
       const eventData = {
-        verificationId: verificationId.toString(),
-        user,
+        requestId: requestId.toString(),
+        requester,
+        prompt,
         model,
+        fee: fee.toString(),
         blockNumber: event.blockNumber,
         transactionHash: event.transactionHash,
       };
 
-      logger.info('Verification submitted event', eventData);
+      logger.info('Verification requested event', eventData);
 
       // Emit WebSocket update
       if (global.io) {
-        global.io.to(`verification-${verificationId.toString()}`).emit('verification-update', {
-          type: 'submitted',
+        global.io.to(`verification-${requestId.toString()}`).emit('verification-update', {
+          type: 'requested',
           data: eventData,
         });
       }
     });
 
-    this.veriAIContract.on('VerificationVerified', (verificationId, attestationId, event) => {
+    this.veriAIContract.on('VerificationFulfilled', (requestId, attestationId, outputHash, event) => {
       const eventData = {
-        verificationId: verificationId.toString(),
-        attestationId,
+        requestId: requestId.toString(),
+        attestationId: attestationId.toString(),
+        outputHash: outputHash.toString(),
         blockNumber: event.blockNumber,
         transactionHash: event.transactionHash,
       };
 
-      logger.info('Verification verified event', eventData);
+      logger.info('Verification fulfilled event', eventData);
 
       // Emit WebSocket update
       if (global.io) {
-        global.io.to(`verification-${verificationId.toString()}`).emit('verification-update', {
-          type: 'verified',
+        global.io.to(`verification-${requestId.toString()}`).emit('verification-update', {
+          type: 'fulfilled',
           data: eventData,
         });
       }
     });
 
     // Listen to NFT events
-    this.nftContract.on('NFTMinted', (tokenId, owner, verificationId, event) => {
+    this.nftContract.on('VerificationNFTMinted', (tokenId, recipient, model, verified, event) => {
       const eventData = {
         tokenId: tokenId.toString(),
-        owner,
-        verificationId: verificationId.toString(),
+        recipient,
+        model,
+        verified,
         blockNumber: event.blockNumber,
         transactionHash: event.transactionHash,
       };
@@ -442,7 +446,7 @@ export class ContractService {
 
       // Emit WebSocket update
       if (global.io) {
-        global.io.to(`verification-${verificationId.toString()}`).emit('nft-update', {
+        global.io.to(`nft-${tokenId.toString()}`).emit('nft-update', {
           type: 'minted',
           data: eventData,
         });
@@ -450,39 +454,43 @@ export class ContractService {
     });
 
     // Listen to FDC Relayer events
-    this.fdcRelayerContract.on('AttestationSubmitted', (requestId, provider, event) => {
+    this.fdcRelayerContract.on('AttestationRequested', (veriAIRequestId, fdcAttestationId, requester, model, event) => {
       const eventData = {
-        requestId: requestId.toString(),
-        provider,
+        veriAIRequestId: veriAIRequestId.toString(),
+        fdcAttestationId: fdcAttestationId.toString(),
+        requester,
+        model,
         blockNumber: event.blockNumber,
         transactionHash: event.transactionHash,
       };
 
-      logger.info('FDC attestation submitted event', eventData);
+      logger.info('FDC attestation requested event', eventData);
 
       // Emit WebSocket update
       if (global.io) {
-        global.io.to(`verification-${requestId.toString()}`).emit('attestation-update', {
-          type: 'submitted',
+        global.io.to(`verification-${veriAIRequestId.toString()}`).emit('attestation-update', {
+          type: 'requested',
           data: eventData,
         });
       }
     });
 
-    this.fdcRelayerContract.on('AttestationVerified', (requestId, verified, event) => {
+    this.fdcRelayerContract.on('AttestationFulfilled', (veriAIRequestId, fdcAttestationId, success, output, event) => {
       const eventData = {
-        requestId: requestId.toString(),
-        verified,
+        veriAIRequestId: veriAIRequestId.toString(),
+        fdcAttestationId: fdcAttestationId.toString(),
+        success,
+        output,
         blockNumber: event.blockNumber,
         transactionHash: event.transactionHash,
       };
 
-      logger.info('FDC attestation verified event', eventData);
+      logger.info('FDC attestation fulfilled event', eventData);
 
       // Emit WebSocket update
       if (global.io) {
-        global.io.to(`verification-${requestId.toString()}`).emit('attestation-update', {
-          type: 'verified',
+        global.io.to(`verification-${veriAIRequestId.toString()}`).emit('attestation-update', {
+          type: 'fulfilled',
           data: eventData,
         });
       }

@@ -8,7 +8,8 @@ interface User {
   address: string;
   nonce: string;
   createdAt: Date;
-  lastLoginAt: Date;
+  lastLoginAt?: Date;
+  lastActivity: Date;
   totalGenerations: number;
   totalVerifications: number;
   totalNFTs: number;
@@ -134,7 +135,7 @@ export class AuthService {
       expiresIn: this.jwtExpiry,
       issuer: 'veriai',
       audience: 'veriai-users',
-    });
+    } as jwt.SignOptions);
   }
 
   async verifyJWT(token: string): Promise<{ address: string; valid: boolean }> {

@@ -98,7 +98,7 @@ export class DatabaseService {
   /**
    * Connect to MongoDB
    */
-  private async connect(): Promise<void> {
+  async connect(): Promise<void> {
     try {
       const mongoUri = process.env.MONGODB_URI;
       
