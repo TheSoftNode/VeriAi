@@ -53,6 +53,18 @@ router.post(
       .isString()
       .isLength({ min: 1, max: 10000 })
       .withMessage('Output must be between 1 and 10000 characters'),
+    body('outputHash')
+      .optional()
+      .isString()
+      .withMessage('Output hash must be a string'),
+    body('signature')
+      .optional()
+      .isString()
+      .withMessage('Signature must be a string'),
+    body('message')
+      .optional()
+      .isString()
+      .withMessage('Message must be a string'),
   ],
   validateRequest,
   asyncHandler(verificationController.submitProof)

@@ -24,28 +24,8 @@ import {
   Zap
 } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { aiApi, verificationApi } from '@/lib/api/client';
+import { aiApi, verificationApi, AIGenerationResult } from '@/lib/api/client';
 
-interface GenerationRequest {
-  id: string;
-  requestId: string;
-  prompt: string;
-  model: string;
-  output?: string;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
-  userAddress: string;
-  outputHash?: string;
-  timestamp: string;
-  metadata?: {
-    maxTokens?: number;
-    temperature?: number;
-    completedAt?: string;
-    failedAt?: string;
-    error?: string;
-  };
-  createdAt?: string;
-  canVerify?: boolean;
-}
 
 interface AIModel {
   id: string;
@@ -64,8 +44,8 @@ const GeneratePage = () => {
   const [maxTokens, setMaxTokens] = useState([1000]);
   const [temperature, setTemperature] = useState([0.7]);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [generations, setGenerations] = useState<GenerationRequest[]>([]);
-  const [currentGeneration, setCurrentGeneration] = useState<GenerationRequest | null>(null);
+  const [generations, setGenerations] = useState<AIGenerationResult[]>([]);
+  const [currentGeneration, setCurrentGeneration] = useState<AIGenerationResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [availableModels, setAvailableModels] = useState<AIModel[]>([]);
   const [modelsLoading, setModelsLoading] = useState(true);
@@ -88,14 +68,57 @@ const GeneratePage = () => {
         const available = response.data.models.filter((model: AIModel) => model.available);
         setAvailableModels(available);
         if (available.length > 0) {
-          if (!selectedModel || !available.find(m => m.id === selectedModel)) {
+          if (!selectedModel || !available.find((m: AIModel) => m.id === selectedModel)) {
             setSelectedModel(available[0].id);
           }
+        } else {
+          // Use fallback models if none are available
+          const fallbackModels: AIModel[] = [
+            {
+              id: 'gemini-1.5-flash',
+              name: 'Gemini 1.5 Flash',
+              provider: 'google',
+              description: 'Fast and efficient multimodal model',
+              maxTokens: 8192,
+              costPer1KTokens: 0.001,
+              available: true,
+            }
+          ];
+          setAvailableModels(fallbackModels);
+          setSelectedModel(fallbackModels[0].id);
         }
+      } else {
+        // Fallback models if API fails
+        const fallbackModels: AIModel[] = [
+          {
+            id: 'gemini-1.5-flash',
+            name: 'Gemini 1.5 Flash',
+            provider: 'google',
+            description: 'Fast and efficient multimodal model',
+            maxTokens: 8192,
+            costPer1KTokens: 0.001,
+            available: true,
+          }
+        ];
+        setAvailableModels(fallbackModels);
+        setSelectedModel(fallbackModels[0].id);
       }
     } catch (error) {
       console.error('Error loading AI models:', error);
-      setAvailableModels([]);
+      // Fallback models if API fails
+      const fallbackModels: AIModel[] = [
+        {
+          id: 'gemini-1.5-flash',
+          name: 'Gemini 1.5 Flash',
+          provider: 'google',
+          description: 'Fast and efficient multimodal model',
+          maxTokens: 8192,
+          costPer1KTokens: 0.001,
+          available: true,
+        }
+      ];
+      setAvailableModels(fallbackModels);
+      setSelectedModel(fallbackModels[0].id);
     } finally {
       setModelsLoading(false);
     }
@@ -164,18 +187,17 @@ const GeneratePage = () => {
       setIsGenerating(false);
       setCurrentGeneration({
         id: 'error',
-        requestId: 'error',
+        status: 'failed',
         prompt,
         model: selectedModel,
         output: 'Generation failed. Please try again.',
-        status: 'failed',
-        userAddress: address,
-        timestamp: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       });
     }
   };
 
-  const handleVerifyGeneration = async (generation: GenerationRequest) => {
+  const handleVerifyGeneration = async (generation: AIGenerationResult) => {
     if (!generation.output || !address) return;
 
     try {
@@ -201,7 +223,7 @@ const GeneratePage = () => {
     navigator.clipboard.writeText(text);
   };
 
-  const downloadOutput = (generation: GenerationRequest) => {
+  const downloadOutput = (generation: AIGenerationResult) => {
     if (!generation.output) return;
     
     const blob = new Blob([generation.output], { type: 'text/plain' });
@@ -446,7 +468,7 @@ const GeneratePage = () => {
                           {currentGeneration.status}
                         </Badge>
                         <span className="text-xs text-muted-foreground">
-                          {new Date(currentGeneration.timestamp || currentGeneration.createdAt).toLocaleTimeString()}
+                          {new Date(currentGeneration.createdAt).toLocaleTimeString()}
                         </span>
                       </div>
 
@@ -583,7 +605,7 @@ const GeneratePage = () => {
                           </p>
                         </div>
                         <span className="text-xs text-muted-foreground">
-                          {new Date(generation.timestamp || generation.createdAt).toLocaleDateString()}
+                          {new Date(generation.createdAt).toLocaleDateString()}
                         </span>
                       </div>
 

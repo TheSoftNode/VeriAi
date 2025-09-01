@@ -301,8 +301,8 @@ router.get(
   asyncHandler(async (req, res) => {
     const { userAddress } = req.params;
 
-    // Get stats from all services
-    const [generations, verifications, nfts] = await Promise.all([
+    // Get comprehensive stats from all services
+    const [generations, verifications, nfts, allVerifications] = await Promise.all([
       aiService.getUserGenerations(userAddress, 1, 1),
       verificationService.getUserVerifications({
         userAddress,
@@ -314,7 +314,29 @@ router.get(
         page: 1,
         limit: 1,
       }),
+      // Get all verifications to calculate success rate
+      verificationService.getUserVerifications({
+        userAddress,
+        page: 1,
+        limit: 1000,
+      }),
     ]);
+
+    // Calculate success rate
+    const totalVerifications = allVerifications.total;
+    const verifiedCount = allVerifications.verifications.filter(v => v.status === 'verified').length;
+    const successRate = totalVerifications > 0 ? Math.round((verifiedCount / totalVerifications) * 100) : 0;
+
+    // Calculate activity today
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayGenerations = generations.generations?.filter(g => 
+      new Date(g.timestamp) >= today
+    ).length || 0;
+
+    // Get last activity timestamp
+    const lastActivity = generations.generations?.[0]?.timestamp || 
+                        new Date().toISOString();
 
     res.status(200).json({
       success: true,
@@ -322,7 +344,13 @@ router.get(
         totalGenerations: generations.total,
         totalVerifications: verifications.total,
         totalNFTs: nfts.total,
-        lastActivity: new Date().toISOString(),
+        successRate,
+        activeToday: todayGenerations,
+        lastActivity,
+        verificationsChange: 0,
+        successRateChange: 0,
+        nftsChange: 0,
+        activeChange: 0,
       },
     });
   })

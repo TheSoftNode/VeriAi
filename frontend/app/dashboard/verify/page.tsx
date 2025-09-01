@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useAccount } from 'wagmi';
+import { useAccount, useSignMessage } from 'wagmi';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -23,61 +23,16 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { verificationApi } from '@/lib/api/client';
-
-interface VerificationResult {
-  id: string;
-  prompt: string;
-  output: string;
-  model: string;
-  status: 'verified' | 'invalid' | 'pending';
-  confidence: number;
-  timestamp: string;
-  transactionHash?: string;
-  nftTokenId?: string;
-}
+import { verificationApi, VerificationResult } from '@/lib/api/client';
 
 const VerifyPage = () => {
   const { address, isConnected } = useAccount();
+  const { signMessageAsync } = useSignMessage();
   const [content, setContent] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
   const [verificationResult, setVerificationResult] = useState<VerificationResult | null>(null);
   const [verificationHistory, setVerificationHistory] = useState<VerificationResult[]>([]);
   const [loading, setLoading] = useState(false);
-
-  const mockVerifications: VerificationResult[] = [
-    {
-      id: '1',
-      prompt: 'Write an article about blockchain technology',
-      output: 'Blockchain is a revolutionary technology...',
-      model: 'GPT-4',
-      status: 'verified',
-      confidence: 98.5,
-      timestamp: '2024-01-15T10:30:00Z',
-      transactionHash: '0x123...abc',
-      nftTokenId: '42'
-    },
-    {
-      id: '2',
-      prompt: 'Create a product description',
-      output: 'Our innovative product offers...',
-      model: 'Claude-3',
-      status: 'verified',
-      confidence: 97.2,
-      timestamp: '2024-01-14T15:45:00Z',
-      transactionHash: '0x456...def',
-      nftTokenId: '41'
-    },
-    {
-      id: '3',
-      prompt: 'Generate marketing copy',
-      output: 'Transform your business with...',
-      model: 'GPT-3.5',
-      status: 'invalid',
-      confidence: 45.8,
-      timestamp: '2024-01-13T09:20:00Z'
-    }
-  ];
 
   useEffect(() => {
     if (isConnected && address) {
@@ -94,11 +49,11 @@ const VerifyPage = () => {
       if (response.success && response.data && Array.isArray(response.data.verifications)) {
         setVerificationHistory(response.data.verifications);
       } else {
-        setVerificationHistory(mockVerifications);
+        setVerificationHistory([]);
       }
     } catch (error) {
       console.error('Error loading verification history:', error);
-      setVerificationHistory(mockVerifications);
+      setVerificationHistory([]);
     } finally {
       setLoading(false);
     }
@@ -109,9 +64,26 @@ const VerifyPage = () => {
 
     setIsVerifying(true);
     try {
-      const response = await verificationApi.verifyContent({
-        content: content.trim(),
-        userAddress: address
+      // Create content hash
+      const contentHash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(content.trim()));
+      const outputHash = Array.from(new Uint8Array(contentHash))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
+
+      // Create message to sign
+      const message = `Verify AI content with hash: ${outputHash}\nTimestamp: ${Date.now()}`;
+
+      // Request wallet signature
+      const signature = await signMessageAsync({ message });
+
+      const response = await verificationApi.requestVerification({
+        prompt: 'Verify this content',
+        model: 'gemini-1.5-flash',
+        userAddress: address,
+        output: content.trim(),
+        outputHash,
+        signature,
+        message
       });
 
       if (response.success && response.data) {
@@ -124,12 +96,14 @@ const VerifyPage = () => {
       console.error('Verification error:', error);
       const fallbackResult: VerificationResult = {
         id: 'error',
-        prompt: 'Unknown prompt',
+        status: 'failed',
+        requestId: 'error',
+        userAddress: address!,
+        prompt: 'Verify this content',
+        model: 'gemini-1.5-flash',
         output: content,
-        model: 'Auto-detected',
-        status: 'invalid',
-        confidence: 0,
-        timestamp: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       };
       setVerificationResult(fallbackResult);
     } finally {
@@ -286,25 +260,25 @@ const VerifyPage = () => {
                       {/* Status */}
                       <div className="text-center">
                         <div className={`w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center ${
-                          verificationResult.status === 'verified' ? 'bg-chart-3/10' :
-                          verificationResult.status === 'invalid' ? 'bg-destructive/10' :
+                          verificationResult.status === 'completed' ? 'bg-chart-3/10' :
+                          verificationResult.status === 'failed' ? 'bg-destructive/10' :
                           'bg-chart-4/10'
                         }`}>
-                          {verificationResult.status === 'verified' && <CheckCircle className="h-8 w-8 text-chart-3" />}
-                          {verificationResult.status === 'invalid' && <AlertTriangle className="h-8 w-8 text-destructive" />}
+                          {verificationResult.status === 'completed' && <CheckCircle className="h-8 w-8 text-chart-3" />}
+                          {verificationResult.status === 'failed' && <AlertTriangle className="h-8 w-8 text-destructive" />}
                           {verificationResult.status === 'pending' && <Clock className="h-8 w-8 text-chart-4" />}
                         </div>
                         
                         <Badge variant={
-                          verificationResult.status === 'verified' ? 'default' :
-                          verificationResult.status === 'invalid' ? 'destructive' :
+                          verificationResult.status === 'completed' ? 'default' :
+                          verificationResult.status === 'failed' ? 'destructive' :
                           'secondary'
                         } className="mb-2">
                           {verificationResult.status}
                         </Badge>
                         
                         <p className="text-2xl font-bold text-foreground">
-                          {verificationResult.confidence.toFixed(1)}%
+                          {(verificationResult.confidence || 0).toFixed(1)}%
                         </p>
                         <p className="text-sm text-muted-foreground">Confidence Score</p>
                       </div>
@@ -317,7 +291,7 @@ const VerifyPage = () => {
                         </div>
                         <div className="flex justify-between">
                           <span className="text-sm font-medium">Verified</span>
-                          <span className="text-sm">{new Date(verificationResult.timestamp).toLocaleString()}</span>
+                          <span className="text-sm">{new Date(verificationResult.createdAt).toLocaleString()}</span>
                         </div>
                         {verificationResult.transactionHash && (
                           <div className="flex justify-between">
@@ -331,25 +305,25 @@ const VerifyPage = () => {
                             </Button>
                           </div>
                         )}
-                        {verificationResult.nftTokenId && (
+                        {verificationResult.fdcAttestationId && (
                           <div className="flex justify-between">
-                            <span className="text-sm font-medium">NFT ID</span>
-                            <span className="text-sm font-mono">#{verificationResult.nftTokenId}</span>
+                            <span className="text-sm font-medium">Attestation ID</span>
+                            <span className="text-sm font-mono">{verificationResult.fdcAttestationId}</span>
                           </div>
                         )}
                       </div>
 
                       {/* Actions */}
-                      {verificationResult.status === 'verified' && (
+                      {verificationResult.status === 'completed' && (
                         <div className="space-y-2 pt-4 border-t">
                           <Button variant="outline" size="sm" className="w-full" onClick={() => copyToClipboard(verificationResult.id)}>
                             <Copy className="h-3 w-3 mr-2" />
                             Copy Verification ID
                           </Button>
-                          {verificationResult.nftTokenId && (
+                          {verificationResult.fdcAttestationId && (
                             <Button variant="outline" size="sm" className="w-full">
                               <Eye className="h-3 w-3 mr-2" />
-                              View NFT Certificate
+                              View Attestation
                             </Button>
                           )}
                         </div>
@@ -412,18 +386,18 @@ const VerifyPage = () => {
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2">
                             <Badge variant={
-                              verification.status === 'verified' ? 'default' :
-                              verification.status === 'invalid' ? 'destructive' :
+                              verification.status === 'completed' ? 'default' :
+                              verification.status === 'failed' ? 'destructive' :
                               'secondary'
                             }>
-                              {verification.status === 'verified' && <CheckCircle className="h-3 w-3 mr-1" />}
-                              {verification.status === 'invalid' && <AlertTriangle className="h-3 w-3 mr-1" />}
+                              {verification.status === 'completed' && <CheckCircle className="h-3 w-3 mr-1" />}
+                              {verification.status === 'failed' && <AlertTriangle className="h-3 w-3 mr-1" />}
                               {verification.status === 'pending' && <Clock className="h-3 w-3 mr-1" />}
                               {verification.status}
                             </Badge>
                             <Badge variant="outline">{verification.model}</Badge>
                             <span className="text-xs text-muted-foreground">
-                              {verification.confidence.toFixed(1)}% confidence
+                              {(verification.confidence || 0).toFixed(1)}% confidence
                             </span>
                           </div>
                           <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
@@ -431,7 +405,7 @@ const VerifyPage = () => {
                           </p>
                         </div>
                         <span className="text-xs text-muted-foreground">
-                          {new Date(verification.timestamp).toLocaleDateString()}
+                          {new Date(verification.createdAt).toLocaleDateString()}
                         </span>
                       </div>
 

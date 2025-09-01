@@ -12,6 +12,9 @@ export interface VerificationRequest {
   model: string;
   userAddress: string;
   output: string;
+  outputHash?: string;
+  signature?: string;
+  message?: string;
 }
 
 export interface VerificationResult {
@@ -138,8 +141,8 @@ export const aiApi = {
     return apiClient.get<AIGenerationResult>(`/api/v1/ai/generation/${requestId}`);
   },
 
-  async getModels(): Promise<APIResponse<any[]>> {
-    return apiClient.get<any[]>('/api/v1/ai/models');
+  async getModels(): Promise<APIResponse<{models: any[], total: number}>> {
+    return apiClient.get<{models: any[], total: number}>('/api/v1/ai/models');
   },
 
   async validateOutput(data: {
@@ -319,7 +322,13 @@ export const userApi = {
     totalGenerations: number;
     totalVerifications: number;
     totalNFTs: number;
+    successRate: number;
+    activeToday: number;
     lastActivity: string;
+    verificationsChange: number;
+    successRateChange: number;
+    nftsChange: number;
+    activeChange: number;
   }>> {
     return apiClient.get(`/api/v1/user/${address}/stats`);
   },

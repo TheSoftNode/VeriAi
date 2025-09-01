@@ -9,9 +9,10 @@ interface SubmitProofParams {
   prompt: string;
   output: string;
   model: string;
-  outputHash: string;
+  outputHash?: string;
   userAddress: string;
-  signature: string;
+  signature?: string;
+  message?: string;
   attestationData?: any;
 }
 
@@ -84,9 +85,10 @@ export class VerificationService {
     try {
       // Verify signature if provided
       if (signature) {
+        const messageToVerify = params.message || outputHash || output;
         const isValidSignature = await this.verifySignature(
           userAddress,
-          outputHash || output,
+          messageToVerify,
           signature
         );
 
@@ -95,9 +97,9 @@ export class VerificationService {
         }
       }
 
-      // Verify output hash
+      // Verify output hash if provided
       const computedHash = this.hashOutput(output);
-      if (computedHash !== outputHash) {
+      if (outputHash && computedHash !== outputHash) {
         throw new Error('Output hash mismatch');
       }
 

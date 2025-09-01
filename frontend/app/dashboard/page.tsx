@@ -13,14 +13,10 @@ import {
   BarChart3,
   ArrowRight,
   Activity,
-  TrendingUp,
-  Zap,
   Store,
   Database,
   Clock,
   CheckCircle,
-  AlertTriangle,
-  User
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { APP_CONFIG } from '@/lib/config';
@@ -87,7 +83,7 @@ const DashboardPage = () => {
         setStats([
           { title: 'Total Verifications', value: data.totalVerifications?.toString() || '0', change: `+${data.verificationsChange || 0}%`, icon: BarChart3, color: 'text-primary' },
           { title: 'Success Rate', value: `${data.successRate || 0}%`, change: `+${data.successRateChange || 0}%`, icon: CheckCircle, color: 'text-chart-3' },
-          { title: 'NFTs Minted', value: data.nftsMinted?.toString() || '0', change: `+${data.nftsChange || 0}%`, icon: Trophy, color: 'text-chart-5' },
+          { title: 'NFTs Minted', value: data.totalNFTs?.toString() || '0', change: `+${data.nftsChange || 0}%`, icon: Trophy, color: 'text-chart-5' },
           { title: 'Active Today', value: data.activeToday?.toString() || '0', change: `+${data.activeChange || 0}%`, icon: Activity, color: 'text-accent' },
         ]);
       }

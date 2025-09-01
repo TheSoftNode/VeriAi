@@ -58,8 +58,8 @@ const AnalyticsPage = () => {
         setGlobalStats([
           { title: 'Total Verifications', value: data.totalVerifications?.toString() || '0', change: `+${data.verificationsChange || 0}%`, icon: BarChart3, color: 'text-primary' },
           { title: 'Success Rate', value: `${data.successRate || 0}%`, change: `+${data.successRateChange || 0}%`, icon: CheckCircle, color: 'text-chart-3' },
-          { title: 'Active Users', value: data.activeUsers?.toString() || '0', change: `+${data.usersChange || 0}%`, icon: Users, color: 'text-chart-5' },
-          { title: 'Network Health', value: `${data.networkHealth || 0}%`, change: `+${data.healthChange || 0}%`, icon: Activity, color: 'text-accent' },
+          { title: 'NFTs Minted', value: data.totalNFTs?.toString() || '0', change: `+${data.nftsChange || 0}%`, icon: Users, color: 'text-chart-5' },
+          { title: 'Active Today', value: data.activeToday?.toString() || '0', change: `+${data.activeChange || 0}%`, icon: Activity, color: 'text-accent' },
         ]);
       }
     } catch (error) {
