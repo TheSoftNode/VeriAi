@@ -387,6 +387,132 @@ export class VerificationService {
   }
 
   /**
+   * Fulfill verification with FDC attestation result
+   */
+  async fulfillVerification(params: {
+    verificationId: string;
+    fdcAttestationId: string;
+    proof: any;
+    verified: boolean;
+  }): Promise<Verification | null> {
+    const { verificationId, fdcAttestationId, proof, verified } = params;
+
+    try {
+      const verification = await this.db.getVerification(verificationId);
+      if (!verification) {
+        throw new Error('Verification not found');
+      }
+
+      const updateData = {
+        status: verified ? 'verified' : 'rejected' as const,
+        verifiedAt: verified ? new Date().toISOString() : undefined,
+        attestationId: fdcAttestationId,
+        fdcProof: proof,
+        metadata: {
+          ...verification.metadata,
+          fulfillmentTimestamp: new Date().toISOString(),
+          fdcAttestationId,
+        },
+      };
+
+      await this.db.updateVerification(verificationId, updateData);
+
+      logger.info('Verification fulfilled', {
+        verificationId,
+        verified,
+        fdcAttestationId,
+      });
+
+      return await this.db.getVerification(verificationId);
+    } catch (error) {
+      logger.error('Failed to fulfill verification', {
+        verificationId,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Retry failed verification
+   */
+  async retryVerification(verificationId: string): Promise<Verification | null> {
+    try {
+      const verification = await this.db.getVerification(verificationId);
+      if (!verification) {
+        throw new Error('Verification not found');
+      }
+
+      // Reset status and initiate new attestation process
+      await this.db.updateVerification(verificationId, {
+        status: 'pending',
+        metadata: {
+          ...verification.metadata,
+          retryTimestamp: new Date().toISOString(),
+          retryCount: (verification.metadata?.retryCount || 0) + 1,
+        },
+      });
+
+      // Reinitiate attestation process
+      const updatedVerification = await this.db.getVerification(verificationId);
+      if (updatedVerification) {
+        await this.initiateAttestationProcess(updatedVerification);
+      }
+
+      logger.info('Verification retry initiated', {
+        verificationId,
+        retryCount: (verification.metadata?.retryCount || 0) + 1,
+      });
+
+      return await this.db.getVerification(verificationId);
+    } catch (error) {
+      logger.error('Failed to retry verification', {
+        verificationId,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Update verification with NFT information
+   */
+  async updateVerificationNFT(verificationId: string, nftData: {
+    nftTokenId: string;
+    transactionHash: string;
+    blockNumber: number;
+  }): Promise<void> {
+    try {
+      const verification = await this.db.getVerification(verificationId);
+      if (!verification) {
+        throw new Error('Verification not found');
+      }
+
+      await this.db.updateVerification(verificationId, {
+        metadata: {
+          ...verification.metadata,
+          nftTokenId: nftData.nftTokenId,
+          nftTransactionHash: nftData.transactionHash,
+          nftBlockNumber: nftData.blockNumber,
+          nftMintedAt: new Date().toISOString(),
+        },
+      });
+
+      logger.info('Verification updated with NFT information', {
+        verificationId,
+        nftTokenId: nftData.nftTokenId,
+        transactionHash: nftData.transactionHash,
+      });
+    } catch (error) {
+      logger.error('Failed to update verification with NFT data', {
+        verificationId,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      throw error;
+    }
+  }
+
+  /**
    * Get verification statistics
    */
   async getStats(): Promise<{

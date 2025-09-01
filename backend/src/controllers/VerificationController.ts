@@ -1,13 +1,16 @@
 import { Request, Response } from 'express';
 import { VerificationService } from '@/services/VerificationService';
+import { ContractService } from '@/services/ContractService';
 import { createError } from '@/middleware/errorHandler';
 import { logger } from '@/utils/logger';
 
 export class VerificationController {
   private verificationService: VerificationService;
+  private contractService: ContractService;
 
   constructor() {
     this.verificationService = new VerificationService();
+    this.contractService = new ContractService();
   }
 
   /**
@@ -177,6 +180,115 @@ export class VerificationController {
       });
 
       throw createError.internal('Failed to challenge verification');
+    }
+  };
+
+  /**
+   * Fulfill verification with FDC attestation
+   */
+  fulfillVerification = async (req: Request, res: Response): Promise<void> => {
+    const { requestId } = req.params;
+    const { fdcAttestationId, proof, verified } = req.body;
+
+    try {
+      // Get the verification request
+      const verification = await this.verificationService.getVerification(requestId);
+      if (!verification) {
+        throw createError.notFound('Verification request not found');
+      }
+
+      // Update verification with FDC attestation result
+      const updatedVerification = await this.verificationService.fulfillVerification({
+        verificationId: requestId,
+        fdcAttestationId,
+        proof,
+        verified,
+      });
+
+      // If verified, mint NFT
+      if (verified && updatedVerification) {
+        try {
+          const nftResult = await this.contractService.mintNFT({
+            userAddress: verification.userAddress,
+            prompt: verification.prompt,
+            output: verification.output,
+            model: verification.model,
+            requestId: requestId,
+          });
+
+          // Update verification with NFT information
+          await this.verificationService.updateVerificationNFT(requestId, {
+            nftTokenId: nftResult.tokenId,
+            transactionHash: nftResult.transactionHash,
+            blockNumber: nftResult.blockNumber,
+          });
+
+          logger.info('Verification fulfilled and NFT minted', {
+            verificationId: requestId,
+            tokenId: nftResult.tokenId,
+            transactionHash: nftResult.transactionHash,
+          });
+        } catch (nftError) {
+          logger.error('Failed to mint NFT after verification', {
+            verificationId: requestId,
+            error: nftError instanceof Error ? nftError.message : 'Unknown error',
+          });
+          // Don't fail the entire request if NFT minting fails
+        }
+      }
+
+      res.status(200).json({
+        success: true,
+        data: updatedVerification,
+      });
+    } catch (error) {
+      logger.error('Failed to fulfill verification', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        requestId,
+        fdcAttestationId,
+      });
+
+      throw createError.internal('Failed to fulfill verification');
+    }
+  };
+
+  /**
+   * Retry failed verification
+   */
+  retryVerification = async (req: Request, res: Response): Promise<void> => {
+    const { requestId } = req.params;
+
+    try {
+      // Get the existing verification
+      const verification = await this.verificationService.getVerification(requestId);
+      if (!verification) {
+        throw createError.notFound('Verification request not found');
+      }
+
+      // Check if retry is allowed
+      if (verification.status !== 'failed' && verification.status !== 'expired') {
+        throw createError.badRequest('Can only retry failed or expired verifications');
+      }
+
+      // Retry the verification
+      const retriedVerification = await this.verificationService.retryVerification(requestId);
+
+      logger.info('Verification retried', {
+        verificationId: requestId,
+        previousStatus: verification.status,
+      });
+
+      res.status(200).json({
+        success: true,
+        data: retriedVerification,
+      });
+    } catch (error) {
+      logger.error('Failed to retry verification', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        requestId,
+      });
+
+      throw createError.internal('Failed to retry verification');
     }
   };
 }

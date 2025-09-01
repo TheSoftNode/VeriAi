@@ -8,9 +8,30 @@ const router = Router();
 const aiController = new AIController();
 
 /**
- * @route POST /api/v1/ai/generate
- * @desc Generate AI content
- * @access Public
+ * @swagger
+ * /api/v1/ai/generate:
+ *   post:
+ *     summary: Generate AI content
+ *     tags: [AI]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/AIGeneration'
+ *     responses:
+ *       201:
+ *         description: Content generated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/SuccessResponse'
+ *       400:
+ *         description: Validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  */
 router.post(
   '/generate',
@@ -40,9 +61,18 @@ router.post(
 );
 
 /**
- * @route GET /api/v1/ai/models
- * @desc Get available AI models
- * @access Public
+ * @swagger
+ * /api/v1/ai/models:
+ *   get:
+ *     summary: Get available AI models
+ *     tags: [AI]
+ *     responses:
+ *       200:
+ *         description: List of available AI models
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/SuccessResponse'
  */
 router.get(
   '/models',
@@ -50,9 +80,32 @@ router.get(
 );
 
 /**
- * @route GET /api/v1/ai/generation/:requestId
- * @desc Get generation status and result
- * @access Public
+ * @swagger
+ * /api/v1/ai/generation/{requestId}:
+ *   get:
+ *     summary: Get generation status and result
+ *     tags: [AI]
+ *     parameters:
+ *       - in: path
+ *         name: requestId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Generation request ID
+ *     responses:
+ *       200:
+ *         description: Generation details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/SuccessResponse'
+ *       404:
+ *         description: Generation not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  */
 router.get(
   '/generation/:requestId',
@@ -66,9 +119,38 @@ router.get(
 );
 
 /**
- * @route POST /api/v1/ai/validate
- * @desc Validate AI output against original
- * @access Public
+ * @swagger
+ * /api/v1/ai/validate:
+ *   post:
+ *     summary: Validate AI output against original
+ *     tags: [AI]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [prompt, output, model, expectedHash]
+ *             properties:
+ *               prompt:
+ *                 type: string
+ *                 example: 'Write a poem about AI'
+ *               output:
+ *                 type: string
+ *                 example: 'AI brings us...' 
+ *               model:
+ *                 type: string
+ *                 example: 'gpt-4'
+ *               expectedHash:
+ *                 type: string
+ *                 example: 'abc123def456'
+ *     responses:
+ *       200:
+ *         description: Validation result
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/SuccessResponse'
  */
 router.post(
   '/validate',

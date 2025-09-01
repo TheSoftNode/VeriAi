@@ -10,9 +10,30 @@ const verificationController = new VerificationController();
 const verificationService = new VerificationService();
 
 /**
- * @route POST /api/v1/verification/request
- * @desc Request verification for AI content
- * @access Public
+ * @swagger
+ * /api/v1/verification/request:
+ *   post:
+ *     summary: Request verification for AI content
+ *     tags: [Verification]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/VerificationRequest'
+ *     responses:
+ *       201:
+ *         description: Verification request submitted
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/SuccessResponse'
+ *       400:
+ *         description: Validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  */
 router.post(
   '/request',
@@ -38,9 +59,38 @@ router.post(
 );
 
 /**
- * @route GET /api/v1/verification/:requestId
- * @desc Get verification status and details
- * @access Public
+ * @swagger
+ * /api/v1/verification/{requestId}:
+ *   get:
+ *     summary: Get verification status and details
+ *     tags: [Verification]
+ *     parameters:
+ *       - in: path
+ *         name: requestId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           minLength: 64
+ *           maxLength: 66
+ *         description: Verification request ID
+ *     responses:
+ *       200:
+ *         description: Verification details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/Verification'
+ *       404:
+ *         description: Verification not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  */
 router.get(
   '/:requestId',
@@ -55,9 +105,59 @@ router.get(
 );
 
 /**
- * @route POST /api/v1/verification/:requestId/fulfill
- * @desc Fulfill verification with FDC attestation
- * @access Private (FDC Relayer only)
+ * @swagger
+ * /api/v1/verification/{requestId}/fulfill:
+ *   post:
+ *     summary: Fulfill verification with FDC attestation
+ *     tags: [Verification]
+ *     parameters:
+ *       - in: path
+ *         name: requestId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           minLength: 64
+ *           maxLength: 66
+ *         description: Verification request ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [fdcAttestationId, proof, verified]
+ *             properties:
+ *               fdcAttestationId:
+ *                 type: string
+ *                 minLength: 64
+ *                 maxLength: 66
+ *                 example: 'att_1234567890abcdef'
+ *               proof:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 example: ['0xabc123', '0xdef456']
+ *               verified:
+ *                 type: boolean
+ *                 example: true
+ *     responses:
+ *       200:
+ *         description: Verification fulfilled successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/Verification'
+ *       404:
+ *         description: Verification not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  */
 router.post(
   '/:requestId/fulfill',
@@ -78,19 +178,74 @@ router.post(
       .withMessage('Verified must be a boolean'),
   ],
   validateRequest,
-  asyncHandler(async (req, res) => {
-    // TODO: Implement verification fulfillment
-    res.status(501).json({
-      success: false,
-      message: 'Verification fulfillment not yet implemented',
-    });
-  })
+  asyncHandler(verificationController.fulfillVerification)
 );
 
 /**
- * @route GET /api/v1/verification/user/:address
- * @desc Get user's verification history
- * @access Public
+ * @swagger
+ * /api/v1/verification/user/{address}:
+ *   get:
+ *     summary: Get user's verification history
+ *     tags: [Verification]
+ *     parameters:
+ *       - in: path
+ *         name: address
+ *         required: true
+ *         schema:
+ *           type: string
+ *           pattern: '^0x[a-fA-F0-9]{40}$'
+ *         description: Ethereum wallet address
+ *         example: '0x742d35Cc6634C0532925a3b8D5c226dEB6323BCC'
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *         description: Page number for pagination
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *           default: 20
+ *         description: Number of items per page
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [pending, processing, completed, failed]
+ *         description: Filter by verification status
+ *     responses:
+ *       200:
+ *         description: User verification history
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         verifications:
+ *                           type: array
+ *                           items:
+ *                             $ref: '#/components/schemas/Verification'
+ *                         total:
+ *                           type: integer
+ *                         page:
+ *                           type: integer
+ *                         totalPages:
+ *                           type: integer
+ *       400:
+ *         description: Invalid address format
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  */
 router.get(
   '/user/:address',
@@ -116,9 +271,45 @@ router.get(
 );
 
 /**
- * @route POST /api/v1/verification/:requestId/retry
- * @desc Retry failed verification
- * @access Public
+ * @swagger
+ * /api/v1/verification/{requestId}/retry:
+ *   post:
+ *     summary: Retry failed verification
+ *     tags: [Verification]
+ *     parameters:
+ *       - in: path
+ *         name: requestId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           minLength: 64
+ *           maxLength: 66
+ *         description: Verification request ID
+ *         example: 'ver_1234567890_abc123'
+ *     responses:
+ *       200:
+ *         description: Verification retry initiated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/Verification'
+ *       400:
+ *         description: Cannot retry verification in current state
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       404:
+ *         description: Verification not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  */
 router.post(
   '/:requestId/retry',
@@ -129,19 +320,124 @@ router.post(
       .withMessage('Invalid request ID format'),
   ],
   validateRequest,
-  asyncHandler(async (req, res) => {
-    // TODO: Implement verification retry
-    res.status(501).json({
-      success: false,
-      message: 'Verification retry not yet implemented',
-    });
-  })
+  asyncHandler(verificationController.retryVerification)
 );
 
 /**
- * @route GET /api/v1/verification/stats
- * @desc Get verification statistics
- * @access Public
+ * @swagger
+ * /api/v1/verification/{requestId}/challenge:
+ *   post:
+ *     summary: Challenge a verification
+ *     tags: [Verification]
+ *     parameters:
+ *       - in: path
+ *         name: requestId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           minLength: 64
+ *           maxLength: 66
+ *         description: Verification request ID
+ *         example: 'ver_1234567890_abc123'
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [challengerAddress, reason]
+ *             properties:
+ *               challengerAddress:
+ *                 type: string
+ *                 pattern: '^0x[a-fA-F0-9]{40}$'
+ *                 example: '0x742d35Cc6634C0532925a3b8D5c226dEB6323BCC'
+ *               reason:
+ *                 type: string
+ *                 minLength: 10
+ *                 maxLength: 500
+ *                 example: 'The verification result appears to be incorrect based on technical analysis'
+ *               evidence:
+ *                 type: object
+ *                 description: Supporting evidence for the challenge
+ *                 example: { 'files': [], 'description': 'Technical proof attached' }
+ *     responses:
+ *       201:
+ *         description: Challenge submitted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/SuccessResponse'
+ *       400:
+ *         description: Validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       404:
+ *         description: Verification not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.post(
+  '/:requestId/challenge',
+  [
+    param('requestId')
+      .isString()
+      .isLength({ min: 64, max: 66 })
+      .withMessage('Invalid request ID format'),
+    body('challengerAddress')
+      .isEthereumAddress()
+      .withMessage('Invalid challenger address'),
+    body('reason')
+      .isString()
+      .isLength({ min: 10, max: 500 })
+      .withMessage('Reason must be between 10 and 500 characters'),
+    body('evidence')
+      .optional()
+      .isObject()
+      .withMessage('Evidence must be an object'),
+  ],
+  validateRequest,
+  asyncHandler(verificationController.challengeVerification)
+);
+
+/**
+ * @swagger
+ * /api/v1/verification/stats:
+ *   get:
+ *     summary: Get verification statistics
+ *     tags: [Verification]
+ *     responses:
+ *       200:
+ *         description: Verification statistics
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         totalVerifications:
+ *                           type: integer
+ *                           example: 1250
+ *                         verifiedCount:
+ *                           type: integer
+ *                           example: 1100
+ *                         challengedCount:
+ *                           type: integer
+ *                           example: 50
+ *                         rejectedCount:
+ *                           type: integer
+ *                           example: 100
+ *                         successRate:
+ *                           type: number
+ *                           format: float
+ *                           example: 88.0
  */
 router.get(
   '/stats',

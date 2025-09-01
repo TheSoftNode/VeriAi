@@ -390,32 +390,104 @@ export class ContractService {
   setupEventListeners(): void {
     // Listen to verification events
     this.veriAIContract.on('VerificationSubmitted', (verificationId, user, model, event) => {
-      logger.info('Verification submitted event', {
+      const eventData = {
         verificationId: verificationId.toString(),
         user,
         model,
         blockNumber: event.blockNumber,
-      });
+        transactionHash: event.transactionHash,
+      };
+
+      logger.info('Verification submitted event', eventData);
+
+      // Emit WebSocket update
+      if (global.io) {
+        global.io.to(`verification-${verificationId.toString()}`).emit('verification-update', {
+          type: 'submitted',
+          data: eventData,
+        });
+      }
     });
 
     this.veriAIContract.on('VerificationVerified', (verificationId, attestationId, event) => {
-      logger.info('Verification verified event', {
+      const eventData = {
         verificationId: verificationId.toString(),
         attestationId,
         blockNumber: event.blockNumber,
-      });
+        transactionHash: event.transactionHash,
+      };
+
+      logger.info('Verification verified event', eventData);
+
+      // Emit WebSocket update
+      if (global.io) {
+        global.io.to(`verification-${verificationId.toString()}`).emit('verification-update', {
+          type: 'verified',
+          data: eventData,
+        });
+      }
     });
 
     // Listen to NFT events
     this.nftContract.on('NFTMinted', (tokenId, owner, verificationId, event) => {
-      logger.info('NFT minted event', {
+      const eventData = {
         tokenId: tokenId.toString(),
         owner,
         verificationId: verificationId.toString(),
         blockNumber: event.blockNumber,
-      });
+        transactionHash: event.transactionHash,
+      };
+
+      logger.info('NFT minted event', eventData);
+
+      // Emit WebSocket update
+      if (global.io) {
+        global.io.to(`verification-${verificationId.toString()}`).emit('nft-update', {
+          type: 'minted',
+          data: eventData,
+        });
+      }
     });
 
-    logger.info('Contract event listeners set up');
+    // Listen to FDC Relayer events
+    this.fdcRelayerContract.on('AttestationSubmitted', (requestId, provider, event) => {
+      const eventData = {
+        requestId: requestId.toString(),
+        provider,
+        blockNumber: event.blockNumber,
+        transactionHash: event.transactionHash,
+      };
+
+      logger.info('FDC attestation submitted event', eventData);
+
+      // Emit WebSocket update
+      if (global.io) {
+        global.io.to(`verification-${requestId.toString()}`).emit('attestation-update', {
+          type: 'submitted',
+          data: eventData,
+        });
+      }
+    });
+
+    this.fdcRelayerContract.on('AttestationVerified', (requestId, verified, event) => {
+      const eventData = {
+        requestId: requestId.toString(),
+        verified,
+        blockNumber: event.blockNumber,
+        transactionHash: event.transactionHash,
+      };
+
+      logger.info('FDC attestation verified event', eventData);
+
+      // Emit WebSocket update
+      if (global.io) {
+        global.io.to(`verification-${requestId.toString()}`).emit('attestation-update', {
+          type: 'verified',
+          data: eventData,
+        });
+      }
+    });
+
+    logger.info('Contract event listeners set up with WebSocket integration');
   }
 }
