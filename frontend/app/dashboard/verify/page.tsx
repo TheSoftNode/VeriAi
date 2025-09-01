@@ -1,0 +1,442 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { useAccount } from 'wagmi';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { 
+  Shield, 
+  CheckCircle, 
+  AlertTriangle,
+  Clock,
+  Upload,
+  FileText,
+  Search,
+  History,
+  Zap,
+  Eye,
+  Copy,
+  ExternalLink
+} from 'lucide-react';
+import { motion } from 'framer-motion';
+
+interface VerificationResult {
+  id: string;
+  prompt: string;
+  output: string;
+  model: string;
+  status: 'verified' | 'invalid' | 'pending';
+  confidence: number;
+  timestamp: string;
+  transactionHash?: string;
+  nftTokenId?: string;
+}
+
+const VerifyPage = () => {
+  const { address, isConnected } = useAccount();
+  const [content, setContent] = useState('');
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [verificationResult, setVerificationResult] = useState<VerificationResult | null>(null);
+  const [verificationHistory, setVerificationHistory] = useState<VerificationResult[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const mockVerifications: VerificationResult[] = [
+    {
+      id: '1',
+      prompt: 'Write an article about blockchain technology',
+      output: 'Blockchain is a revolutionary technology...',
+      model: 'GPT-4',
+      status: 'verified',
+      confidence: 98.5,
+      timestamp: '2024-01-15T10:30:00Z',
+      transactionHash: '0x123...abc',
+      nftTokenId: '42'
+    },
+    {
+      id: '2',
+      prompt: 'Create a product description',
+      output: 'Our innovative product offers...',
+      model: 'Claude-3',
+      status: 'verified',
+      confidence: 97.2,
+      timestamp: '2024-01-14T15:45:00Z',
+      transactionHash: '0x456...def',
+      nftTokenId: '41'
+    },
+    {
+      id: '3',
+      prompt: 'Generate marketing copy',
+      output: 'Transform your business with...',
+      model: 'GPT-3.5',
+      status: 'invalid',
+      confidence: 45.8,
+      timestamp: '2024-01-13T09:20:00Z'
+    }
+  ];
+
+  useEffect(() => {
+    setVerificationHistory(mockVerifications);
+  }, []);
+
+  const handleVerify = async () => {
+    if (!content.trim()) return;
+
+    setIsVerifying(true);
+    try {
+      // Simulate verification process
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
+      const result: VerificationResult = {
+        id: Math.random().toString(36).substr(2, 9),
+        prompt: 'Unknown prompt',
+        output: content,
+        model: 'Auto-detected',
+        status: Math.random() > 0.3 ? 'verified' : 'invalid',
+        confidence: Math.random() * 50 + 50,
+        timestamp: new Date().toISOString(),
+        transactionHash: Math.random() > 0.5 ? `0x${Math.random().toString(16).substr(2, 8)}...${Math.random().toString(16).substr(2, 6)}` : undefined,
+        nftTokenId: Math.random() > 0.5 ? Math.floor(Math.random() * 100).toString() : undefined
+      };
+
+      setVerificationResult(result);
+      setVerificationHistory(prev => [result, ...prev]);
+    } catch (error) {
+      console.error('Verification error:', error);
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+  };
+
+  const openTransaction = (hash: string) => {
+    window.open(`https://coston2.testnet.flarescan.com/tx/${hash}`, '_blank');
+  };
+
+  return (
+    <div className="space-y-8">
+      {/* Header */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+        className="space-y-2"
+      >
+        <h1 className="text-3xl font-bold text-foreground">Content Verification</h1>
+        <p className="text-muted-foreground">
+          Verify the authenticity of AI-generated content using blockchain technology
+        </p>
+      </motion.div>
+
+      <Tabs defaultValue="verify" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="verify" className="flex items-center gap-2">
+            <Shield className="h-4 w-4" />
+            Verify Content
+          </TabsTrigger>
+          <TabsTrigger value="search" className="flex items-center gap-2">
+            <Search className="h-4 w-4" />
+            Search
+          </TabsTrigger>
+          <TabsTrigger value="history" className="flex items-center gap-2">
+            <History className="h-4 w-4" />
+            History
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="verify" className="mt-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Verification Form */}
+            <div className="lg:col-span-2">
+              <Card className="border-0 bg-card/50 backdrop-blur shadow-lg">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Shield className="h-5 w-5" />
+                    Verify AI Content
+                  </CardTitle>
+                  <CardDescription>
+                    Paste AI-generated content to check its authenticity
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {/* Content Input */}
+                  <div>
+                    <Label htmlFor="content" className="text-base font-medium">Content to Verify</Label>
+                    <Textarea
+                      id="content"
+                      placeholder="Paste the AI-generated content you want to verify..."
+                      value={content}
+                      onChange={(e) => setContent(e.target.value)}
+                      className="min-h-48 mt-2"
+                      maxLength={5000}
+                    />
+                    <div className="flex justify-between text-sm text-muted-foreground mt-1">
+                      <span>Supports text up to 5000 characters</span>
+                      <span>{content.length}/5000</span>
+                    </div>
+                  </div>
+
+                  {/* Upload Option */}
+                  <div className="border-t pt-6">
+                    <Label className="text-base font-medium">Or Upload File</Label>
+                    <div className="mt-2 border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary/50 transition-colors cursor-pointer">
+                      <Upload className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                      <p className="text-sm text-muted-foreground">
+                        Drop a text file here or click to browse
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Supports .txt, .md, .doc files
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Verify Button */}
+                  <Button
+                    onClick={handleVerify}
+                    disabled={isVerifying || !content.trim()}
+                    className="w-full group"
+                    size="lg"
+                  >
+                    {isVerifying ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                        Verifying...
+                      </>
+                    ) : (
+                      <>
+                        <Shield className="h-4 w-4 mr-2 group-hover:scale-110 transition-transform" />
+                        Verify Content
+                      </>
+                    )}
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Verification Result */}
+            <div className="lg:col-span-1">
+              <Card className="border-0 bg-card/50 backdrop-blur shadow-lg">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    Verification Result
+                  </CardTitle>
+                  <CardDescription>
+                    Analysis results will appear here
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {!verificationResult && !isVerifying && (
+                    <div className="text-center py-12 text-muted-foreground">
+                      <Shield className="h-16 w-16 text-muted mx-auto mb-4" />
+                      <p>Enter content to verify its authenticity</p>
+                    </div>
+                  )}
+
+                  {isVerifying && (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="text-center py-12"
+                    >
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4" />
+                      <p className="text-foreground mb-2">Analyzing content...</p>
+                      <p className="text-sm text-muted-foreground">Checking against blockchain records</p>
+                    </motion.div>
+                  )}
+
+                  {verificationResult && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="space-y-4"
+                    >
+                      {/* Status */}
+                      <div className="text-center">
+                        <div className={`w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center ${
+                          verificationResult.status === 'verified' ? 'bg-chart-3/10' :
+                          verificationResult.status === 'invalid' ? 'bg-destructive/10' :
+                          'bg-chart-4/10'
+                        }`}>
+                          {verificationResult.status === 'verified' && <CheckCircle className="h-8 w-8 text-chart-3" />}
+                          {verificationResult.status === 'invalid' && <AlertTriangle className="h-8 w-8 text-destructive" />}
+                          {verificationResult.status === 'pending' && <Clock className="h-8 w-8 text-chart-4" />}
+                        </div>
+                        
+                        <Badge variant={
+                          verificationResult.status === 'verified' ? 'default' :
+                          verificationResult.status === 'invalid' ? 'destructive' :
+                          'secondary'
+                        } className="mb-2">
+                          {verificationResult.status}
+                        </Badge>
+                        
+                        <p className="text-2xl font-bold text-foreground">
+                          {verificationResult.confidence.toFixed(1)}%
+                        </p>
+                        <p className="text-sm text-muted-foreground">Confidence Score</p>
+                      </div>
+
+                      {/* Details */}
+                      <div className="space-y-3 pt-4 border-t">
+                        <div className="flex justify-between">
+                          <span className="text-sm font-medium">Model</span>
+                          <Badge variant="outline">{verificationResult.model}</Badge>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm font-medium">Verified</span>
+                          <span className="text-sm">{new Date(verificationResult.timestamp).toLocaleString()}</span>
+                        </div>
+                        {verificationResult.transactionHash && (
+                          <div className="flex justify-between">
+                            <span className="text-sm font-medium">Transaction</span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openTransaction(verificationResult.transactionHash!)}
+                            >
+                              <ExternalLink className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        )}
+                        {verificationResult.nftTokenId && (
+                          <div className="flex justify-between">
+                            <span className="text-sm font-medium">NFT ID</span>
+                            <span className="text-sm font-mono">#{verificationResult.nftTokenId}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Actions */}
+                      {verificationResult.status === 'verified' && (
+                        <div className="space-y-2 pt-4 border-t">
+                          <Button variant="outline" size="sm" className="w-full" onClick={() => copyToClipboard(verificationResult.id)}>
+                            <Copy className="h-3 w-3 mr-2" />
+                            Copy Verification ID
+                          </Button>
+                          {verificationResult.nftTokenId && (
+                            <Button variant="outline" size="sm" className="w-full">
+                              <Eye className="h-3 w-3 mr-2" />
+                              View NFT Certificate
+                            </Button>
+                          )}
+                        </div>
+                      )}
+                    </motion.div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="search" className="mt-8">
+          <Card className="border-0 bg-card/50 backdrop-blur shadow-lg">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Search className="h-5 w-5" />
+                Search Verifications
+              </CardTitle>
+              <CardDescription>
+                Search for verified content by prompt, model, or verification ID
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-12 text-muted-foreground">
+                <Search className="h-16 w-16 text-muted mx-auto mb-4" />
+                <p className="text-lg font-medium">Search Functionality</p>
+                <p className="text-sm">Advanced search features coming soon</p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="history" className="mt-8">
+          <Card className="border-0 bg-card/50 backdrop-blur shadow-lg">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <History className="h-5 w-5" />
+                Verification History
+              </CardTitle>
+              <CardDescription>Your recent verification requests and results</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {verificationHistory.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <History className="h-16 w-16 text-muted mx-auto mb-4" />
+                  <p>No verification history</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {verificationHistory.map((verification, index) => (
+                    <motion.div
+                      key={verification.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                      className="p-4 bg-background/50 rounded-lg border border-border/50 hover:shadow-md transition-all duration-300"
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Badge variant={
+                              verification.status === 'verified' ? 'default' :
+                              verification.status === 'invalid' ? 'destructive' :
+                              'secondary'
+                            }>
+                              {verification.status === 'verified' && <CheckCircle className="h-3 w-3 mr-1" />}
+                              {verification.status === 'invalid' && <AlertTriangle className="h-3 w-3 mr-1" />}
+                              {verification.status === 'pending' && <Clock className="h-3 w-3 mr-1" />}
+                              {verification.status}
+                            </Badge>
+                            <Badge variant="outline">{verification.model}</Badge>
+                            <span className="text-xs text-muted-foreground">
+                              {verification.confidence.toFixed(1)}% confidence
+                            </span>
+                          </div>
+                          <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
+                            {verification.prompt}
+                          </p>
+                        </div>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(verification.timestamp).toLocaleDateString()}
+                        </span>
+                      </div>
+
+                      <div className="bg-muted/30 rounded-lg p-3 mb-3">
+                        <p className="text-sm line-clamp-3 text-foreground">
+                          {verification.output}
+                        </p>
+                      </div>
+
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" onClick={() => setVerificationResult(verification)}>
+                          <Eye className="h-3 w-3 mr-1" />
+                          View Details
+                        </Button>
+                        {verification.transactionHash && (
+                          <Button variant="outline" size="sm" onClick={() => openTransaction(verification.transactionHash!)}>
+                            <ExternalLink className="h-3 w-3 mr-1" />
+                            Transaction
+                          </Button>
+                        )}
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+};
+
+export default VerifyPage;

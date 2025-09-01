@@ -10,7 +10,7 @@ import { ArrowRight, Rocket, Shield, Zap } from 'lucide-react';
 export function CTASection() {
   return (
     <section className="py-20 lg:py-32 bg-gradient-to-br from-primary/5 to-secondary/5">
-      <div className="container">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-4xl">
           <Card className="border-2 border-primary/20 bg-gradient-to-br from-background to-muted/50 shadow-2xl">
             <CardContent className="p-12 text-center">

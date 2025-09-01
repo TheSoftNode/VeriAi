@@ -6,7 +6,6 @@ import { usePathname } from 'next/navigation';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { Button } from '@/components/ui/button';
 import { 
-  Zap, 
   Verified, 
   Image, 
   BarChart3, 
@@ -22,12 +21,12 @@ import { useTheme } from 'next-themes';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
+import { VeriAILogo } from '@/components/ui/veri-ai-logo';
 
 const navigation = [
-  { name: 'Generate', href: '/generate', icon: Sparkles },
-  { name: 'Verify', href: '/verify', icon: Verified },
-  { name: 'Collection', href: '/collection', icon: Image },
-  { name: 'Analytics', href: '/analytics', icon: BarChart3 },
+  { name: 'Features', href: '#features', icon: Sparkles },
+  { name: 'How It Works', href: '#how-it-works', icon: Shield },
+  { name: 'Pricing', href: '#pricing', icon: Sparkles },
   { name: 'Dashboard', href: '/dashboard', icon: User },
 ];
 
@@ -38,17 +37,10 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-16 items-center justify-between">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex h-16 items-center justify-between">
         {/* Logo */}
-        <Link href="/" className="flex items-center space-x-2">
-          <motion.div
-            className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <Shield className="w-5 h-5 text-primary-foreground" />
-          </motion.div>
-          <span className="font-bold text-xl">VeriAI</span>
+        <Link href="/">
+          <VeriAILogo size="md" animated />
         </Link>
 
         {/* Desktop Navigation */}
@@ -111,7 +103,7 @@ export function Header() {
             exit={{ opacity: 0, height: 0 }}
             className="md:hidden border-t bg-background"
           >
-            <nav className="container py-4 space-y-2">
+            <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 space-y-2">
               {navigation.map((item) => {
                 const isActive = pathname === item.href;
                 return (

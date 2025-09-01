@@ -1,21 +1,17 @@
 import React from 'react';
 import Link from 'next/link';
-import { Github, Twitter, Globe, Shield } from 'lucide-react';
+import { Github, Twitter, Globe } from 'lucide-react';
+import { VeriAILogo } from '@/components/ui/veri-ai-logo';
 
 export function Footer() {
   return (
     <footer className="border-t bg-background">
-      <div className="container py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Brand */}
           <div className="space-y-4">
-            <div className="flex items-center space-x-2">
-              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary">
-                <Shield className="w-5 h-5 text-primary-foreground" />
-              </div>
-              <span className="font-bold text-xl">VeriAI</span>
-            </div>
-            <p className="text-sm text-muted-foreground">
+            <VeriAILogo size="md" />
+            <p className="text-sm text-muted-foreground mt-4">
               On-chain verification for AI-generated content using Flare&apos;s Data Connector.
             </p>
           </div>
@@ -113,7 +109,7 @@ export function Footer() {
 
         <div className="mt-8 pt-8 border-t flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
           <p className="text-sm text-muted-foreground">
-            © 2024 VeriAI. Built on Flare Network.
+            © {new Date().getFullYear()} VeriAI. Built on Flare Network.
           </p>
           <div className="flex space-x-6 text-sm text-muted-foreground">
             <Link href="/privacy" className="hover:text-foreground transition-colors">
