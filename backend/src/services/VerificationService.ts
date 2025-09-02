@@ -76,6 +76,7 @@ export class VerificationService {
       outputHash,
       userAddress,
       signature,
+      message,
       attestationData,
     } = params;
 
@@ -83,9 +84,17 @@ export class VerificationService {
     const timestamp = new Date().toISOString();
 
     try {
-      // Verify signature if provided
+      // 1. VERIFY WALLET SIGNATURE (authentication)
       if (signature) {
-        const messageToVerify = params.message || outputHash || output;
+        const messageToVerify = message || `Verify AI content with hash: ${outputHash || this.hashOutput(output)}\nTimestamp: ${Date.now()}`;
+        
+        logger.info('Wallet signature verification attempt', {
+          userAddress,
+          providedMessage: message,
+          messageToVerify,
+          signatureLength: signature.length
+        });
+        
         const isValidSignature = await this.verifySignature(
           userAddress,
           messageToVerify,
@@ -93,14 +102,43 @@ export class VerificationService {
         );
 
         if (!isValidSignature) {
-          throw new Error('Invalid signature');
+          logger.error('Wallet signature verification FAILED', {
+            userAddress,
+            messageToVerify,
+            signature
+          });
+          throw new Error('Invalid wallet signature');
         }
+        
+        logger.info('Wallet signature verification SUCCESS', {
+          userAddress,
+          messageLength: messageToVerify.length
+        });
       }
 
-      // Verify output hash if provided
+      // 2. VERIFY CONTENT HASH (integrity)
       const computedHash = this.hashOutput(output);
-      if (outputHash && computedHash !== outputHash) {
-        throw new Error('Output hash mismatch');
+      let finalOutputHash = outputHash;
+      if (finalOutputHash) {
+        if (computedHash !== finalOutputHash) {
+          logger.error('Content hash verification FAILED', {
+            provided: finalOutputHash,
+            computed: computedHash,
+            outputLength: output.length
+          });
+          throw new Error('Content hash mismatch - output was tampered with');
+        }
+        logger.info('Content hash verification SUCCESS', {
+          hash: computedHash,
+          outputLength: output.length
+        });
+      } else {
+        // If no hash provided, use computed hash
+        finalOutputHash = computedHash;
+        logger.info('Generated content hash', {
+          hash: finalOutputHash,
+          outputLength: output.length
+        });
       }
 
       // Create verification record
@@ -109,14 +147,15 @@ export class VerificationService {
         prompt,
         output,
         model,
-        outputHash,
+        outputHash: finalOutputHash,
         userAddress,
-        signature,
+        signature: signature || '',
         status: 'pending',
         timestamp,
         metadata: {
           submittedAt: timestamp,
           attestationData,
+          confidence: 95.0, // Default confidence for signed verifications
         },
       };
 

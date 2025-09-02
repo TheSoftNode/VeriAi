@@ -43,6 +43,7 @@ export const AIGeneration = mongoose.model<IAIGeneration>('AIGeneration', AIGene
 
 // Verification Model
 export interface IVerification extends Document {
+  verificationId: string;
   prompt: string;
   output: string;
   aiModel: string;
@@ -61,6 +62,7 @@ export interface IVerification extends Document {
 }
 
 const VerificationSchema = new Schema<IVerification>({
+  verificationId: { type: String, required: true, unique: true },
   prompt: { type: String, required: true },
   output: { type: String, required: true },
   aiModel: { type: String, required: true },

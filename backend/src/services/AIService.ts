@@ -29,6 +29,8 @@ interface AIGeneration {
   userAddress: string;
   outputHash: string;
   timestamp: string;
+  createdAt: string;
+  updatedAt: string;
   status: 'pending' | 'completed' | 'failed';
   metadata?: Record<string, any>;
 }
@@ -106,6 +108,8 @@ export class AIService {
         userAddress,
         outputHash: '',
         timestamp,
+        createdAt: timestamp,
+        updatedAt: timestamp,
         status: 'pending',
         metadata: {
           maxTokens,
@@ -143,6 +147,7 @@ export class AIService {
         ...generation,
         output,
         outputHash,
+        updatedAt: new Date().toISOString(),
         status: 'completed',
         metadata: {
           ...generation.metadata,

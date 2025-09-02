@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAccount, useSignMessage } from 'wagmi';
+import { useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -28,6 +29,7 @@ import { verificationApi, VerificationResult } from '@/lib/api/client';
 const VerifyPage = () => {
   const { address, isConnected } = useAccount();
   const { signMessageAsync } = useSignMessage();
+  const searchParams = useSearchParams();
   const [content, setContent] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
   const [verificationResult, setVerificationResult] = useState<VerificationResult | null>(null);
@@ -37,10 +39,16 @@ const VerifyPage = () => {
   useEffect(() => {
     if (isConnected && address) {
       loadVerificationHistory();
+      
+      // Check if we have a specific verification to load
+      const requestId = searchParams.get('request');
+      if (requestId) {
+        loadSpecificVerification(requestId);
+      }
     } else {
       setVerificationHistory([]);
     }
-  }, [isConnected, address]);
+  }, [isConnected, address, searchParams]);
 
   const loadVerificationHistory = async () => {
     setLoading(true);
@@ -56,6 +64,19 @@ const VerifyPage = () => {
       setVerificationHistory([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadSpecificVerification = async (verificationId: string) => {
+    try {
+      const response = await verificationApi.getVerification(verificationId);
+      if (response.success && response.data) {
+        setVerificationResult(response.data);
+        // Also reload history to include the new verification
+        await loadVerificationHistory();
+      }
+    } catch (error) {
+      console.error('Error loading specific verification:', error);
     }
   };
 

@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useAccount } from 'wagmi';
+import { useAccount, useSignMessage } from 'wagmi';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -9,6 +10,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { 
   Sparkles, 
   Copy, 
@@ -39,6 +48,8 @@ interface AIModel {
 
 const GeneratePage = () => {
   const { address, isConnected } = useAccount();
+  const { signMessageAsync } = useSignMessage();
+  const router = useRouter();
   const [prompt, setPrompt] = useState('');
   const [selectedModel, setSelectedModel] = useState('gemini-1.5-flash');
   const [maxTokens, setMaxTokens] = useState([1000]);
@@ -49,6 +60,13 @@ const GeneratePage = () => {
   const [loading, setLoading] = useState(false);
   const [availableModels, setAvailableModels] = useState<AIModel[]>([]);
   const [modelsLoading, setModelsLoading] = useState(true);
+  const [verificationModal, setVerificationModal] = useState<{
+    open: boolean;
+    type: 'success' | 'error';
+    title: string;
+    message: string;
+    verificationId?: string;
+  }>({ open: false, type: 'success', title: '', message: '' });
 
   useEffect(() => {
     loadAvailableModels();
@@ -201,21 +219,68 @@ const GeneratePage = () => {
     if (!generation.output || !address) return;
 
     try {
+      // Create content hash for the output
+      const contentHash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(generation.output.trim()));
+      const outputHash = Array.from(new Uint8Array(contentHash))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
+
+      // Create message to sign for wallet verification
+      const message = `Verify AI content with hash: ${outputHash}\nTimestamp: ${Date.now()}`;
+
+      // Request wallet signature - REQUIRED for real-world verification
+      const signature = await signMessageAsync({ message });
+
+      console.log('Verification request data:', {
+        outputHash,
+        message,
+        signature,
+        userAddress: address
+      });
+
       const response = await verificationApi.requestVerification({
         prompt: generation.prompt,
         model: generation.model,
         userAddress: address,
         output: generation.output,
+        outputHash,
+        signature,
+        message
       });
 
       if (response.success) {
-        window.location.href = `/dashboard/verify?request=${response.data?.id}`;
+        setVerificationModal({
+          open: true,
+          type: 'success',
+          title: 'Verification Submitted',
+          message: 'Your content verification request has been submitted successfully with wallet signature!',
+          verificationId: response.data?.id
+        });
       } else {
-        alert('Failed to start verification: ' + (response.error || 'Unknown error'));
+        setVerificationModal({
+          open: true,
+          type: 'error',
+          title: 'Verification Failed',
+          message: response.error || 'Unknown error occurred during verification'
+        });
       }
     } catch (error) {
       console.error('Verification error:', error);
-      alert('Failed to start verification');
+      if (error instanceof Error && error.message.includes('rejected')) {
+        setVerificationModal({
+          open: true,
+          type: 'error',
+          title: 'Signature Required',
+          message: 'Wallet signature is required for verification. Please approve the signing request to continue.'
+        });
+      } else {
+        setVerificationModal({
+          open: true,
+          type: 'error',
+          title: 'Verification Failed',
+          message: 'Failed to start verification. Please try again.'
+        });
+      }
     }
   };
 
@@ -468,7 +533,9 @@ const GeneratePage = () => {
                           {currentGeneration.status}
                         </Badge>
                         <span className="text-xs text-muted-foreground">
-                          {new Date(currentGeneration.createdAt).toLocaleTimeString()}
+                          {currentGeneration.createdAt && !isNaN(new Date(currentGeneration.createdAt).getTime())
+                            ? new Date(currentGeneration.createdAt).toLocaleTimeString()
+                            : 'Unknown time'}
                         </span>
                       </div>
 
@@ -605,7 +672,9 @@ const GeneratePage = () => {
                           </p>
                         </div>
                         <span className="text-xs text-muted-foreground">
-                          {new Date(generation.createdAt).toLocaleDateString()}
+                          {generation.createdAt && !isNaN(new Date(generation.createdAt).getTime()) 
+                            ? new Date(generation.createdAt).toLocaleDateString()
+                            : 'Unknown date'}
                         </span>
                       </div>
 
@@ -653,6 +722,49 @@ const GeneratePage = () => {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Verification Modal */}
+      <Dialog open={verificationModal.open} onOpenChange={(open) => setVerificationModal(prev => ({ ...prev, open }))}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="flex items-center gap-3 mb-2">
+              {verificationModal.type === 'success' ? (
+                <div className="w-10 h-10 rounded-full bg-chart-3/10 flex items-center justify-center">
+                  <CheckCircle className="h-5 w-5 text-chart-3" />
+                </div>
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center">
+                  <AlertTriangle className="h-5 w-5 text-destructive" />
+                </div>
+              )}
+              <DialogTitle>{verificationModal.title}</DialogTitle>
+            </div>
+            <DialogDescription className="text-left">
+              {verificationModal.message}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setVerificationModal(prev => ({ ...prev, open: false }))}
+            >
+              Close
+            </Button>
+            {verificationModal.type === 'success' && verificationModal.verificationId && (
+              <Button
+                onClick={() => {
+                  setVerificationModal(prev => ({ ...prev, open: false }));
+                  router.push(`/dashboard/verify?request=${verificationModal.verificationId}`);
+                }}
+                className="flex items-center gap-2"
+              >
+                <Shield className="h-4 w-4" />
+                View Verification
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

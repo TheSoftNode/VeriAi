@@ -7,11 +7,11 @@ import { AIController } from '@/controllers/AIController';
 const router = Router();
 
 // Lazy initialization to ensure environment variables are loaded
-const getAIController = () => {
-  if (!getAIController._instance) {
-    getAIController._instance = new AIController();
+const getAIController = (): AIController => {
+  if (!(getAIController as any)._instance) {
+    (getAIController as any)._instance = new AIController();
   }
-  return getAIController._instance;
+  return (getAIController as any)._instance;
 };
 
 /**

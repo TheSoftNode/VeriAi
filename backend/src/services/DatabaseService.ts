@@ -26,6 +26,8 @@ interface AIGenerationData {
   userAddress: string;
   outputHash: string;
   timestamp: string;
+  createdAt: string;
+  updatedAt: string;
   status: 'pending' | 'completed' | 'failed';
   metadata?: Record<string, any>;
 }
@@ -227,6 +229,8 @@ export class DatabaseService {
         userAddress: doc.userAddress,
         outputHash: doc.outputHash,
         timestamp: doc.timestamp.toISOString(),
+        createdAt: doc.timestamp.toISOString(),
+        updatedAt: doc.updatedAt.toISOString(),
         status: doc.status,
         metadata: doc.metadata,
       };
@@ -270,6 +274,8 @@ export class DatabaseService {
         userAddress: doc.userAddress,
         outputHash: doc.outputHash,
         timestamp: doc.timestamp.toISOString(),
+        createdAt: doc.timestamp.toISOString(),
+        updatedAt: doc.updatedAt.toISOString(),
         status: doc.status,
         metadata: doc.metadata,
       }));
@@ -340,6 +346,7 @@ export class DatabaseService {
   async saveVerification(verification: VerificationData): Promise<void> {
     try {
       const doc = new Verification({
+        verificationId: verification.id,
         prompt: verification.prompt,
         output: verification.output,
         aiModel: verification.model,
@@ -377,7 +384,7 @@ export class DatabaseService {
       if (updates.fdcProof !== undefined) updateData.fdcProof = updates.fdcProof;
       if (updates.metadata !== undefined) updateData.metadata = updates.metadata;
 
-      await Verification.findByIdAndUpdate(id, { $set: updateData }, { new: true });
+      await Verification.findOneAndUpdate({ verificationId: id }, { $set: updateData }, { new: true });
       
       logger.debug('Verification updated', { verificationId: id });
     } catch (error) {
@@ -391,11 +398,11 @@ export class DatabaseService {
 
   async getVerification(id: string): Promise<VerificationData | null> {
     try {
-      const doc = await Verification.findById(id).populate('challenges');
+      const doc = await Verification.findOne({ verificationId: id }).populate('challenges');
       if (!doc) return null;
 
       return {
-        id: (doc as any)._id.toString(),
+        id: doc.verificationId,
         prompt: doc.prompt,
         output: doc.output,
         model: doc.aiModel,
@@ -447,7 +454,7 @@ export class DatabaseService {
       ]);
 
       const verifications = docs.map(doc => ({
-        id: doc._id.toString(),
+        id: doc.verificationId,
         prompt: doc.prompt,
         output: doc.output,
         model: doc.aiModel,

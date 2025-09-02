@@ -24,6 +24,7 @@ export class VerificationController {
       outputHash,
       userAddress,
       signature,
+      message,
       attestationData,
     } = req.body;
 
@@ -35,6 +36,7 @@ export class VerificationController {
         outputHash,
         userAddress,
         signature,
+        message,
         attestationData,
       });
 
@@ -46,7 +48,13 @@ export class VerificationController {
 
       res.status(201).json({
         success: true,
-        data: verification,
+        data: {
+          ...verification,
+          confidence: verification.metadata?.confidence || 95.0,
+          requestId: verification.id,
+          createdAt: verification.timestamp,
+          updatedAt: verification.timestamp
+        },
       });
     } catch (error) {
       logger.error('Failed to submit proof', {
@@ -76,7 +84,13 @@ export class VerificationController {
 
       res.status(200).json({
         success: true,
-        data: verification,
+        data: {
+          ...verification,
+          confidence: verification.metadata?.confidence || 95.0,
+          requestId: verification.id,
+          createdAt: verification.timestamp,
+          updatedAt: verification.verifiedAt || verification.timestamp
+        },
       });
     } catch (error) {
       if (error instanceof Error && error.message.includes('not found')) {
@@ -133,9 +147,21 @@ export class VerificationController {
         status: status as string,
       });
 
+      // Transform verifications to include frontend-expected fields
+      const transformedVerifications = {
+        ...verifications,
+        verifications: verifications.verifications.map(v => ({
+          ...v,
+          confidence: v.metadata?.confidence || 95.0,
+          requestId: v.id,
+          createdAt: v.timestamp,
+          updatedAt: v.verifiedAt || v.timestamp
+        }))
+      };
+
       res.status(200).json({
         success: true,
-        data: verifications,
+        data: transformedVerifications,
       });
     } catch (error) {
       logger.error('Failed to fetch user verifications', {
