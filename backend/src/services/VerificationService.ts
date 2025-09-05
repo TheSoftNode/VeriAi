@@ -1,9 +1,9 @@
 import { createHash } from 'crypto';
 import { ethers } from 'ethers';
-import axios from 'axios';
 import { logger } from '@/utils/logger';
 import { DatabaseService } from './DatabaseService';
 import { FDCService } from './FDCService';
+import { ContractService } from './ContractService';
 
 interface SubmitProofParams {
   prompt: string;
@@ -59,10 +59,12 @@ interface Challenge {
 export class VerificationService {
   private db: DatabaseService;
   private fdcService: FDCService;
+  private contractService: ContractService;
 
   constructor() {
     this.db = new DatabaseService();
     this.fdcService = new FDCService();
+    this.contractService = new ContractService();
   }
 
   /**
@@ -167,6 +169,18 @@ export class VerificationService {
       // Start FDC attestation process
       this.initiateAttestationProcess(verification);
 
+      // For demo: Auto-complete verification and mint NFT after submission
+      setTimeout(async () => {
+        try {
+          await this.completeVerificationAndMintNFT(verificationId);
+        } catch (error) {
+          logger.error('Failed to auto-complete verification', {
+            verificationId,
+            error: error instanceof Error ? error.message : 'Unknown error',
+          });
+        }
+      }, 3000); // Complete after 3 seconds for demo
+
       logger.info('Verification proof submitted', {
         verificationId,
         userAddress,
@@ -181,6 +195,104 @@ export class VerificationService {
         error: error instanceof Error ? error.message : 'Unknown error',
       });
 
+      throw error;
+    }
+  }
+
+  /**
+   * Complete verification and mint NFT
+   */
+  async completeVerificationAndMintNFT(verificationId: string): Promise<void> {
+    try {
+      // Get the verification record
+      const verification = await this.db.getVerification(verificationId);
+      if (!verification) {
+        throw new Error('Verification not found');
+      }
+
+      if (verification.status === 'verified') {
+        logger.info('Verification already completed', { verificationId });
+        return;
+      }
+
+      // Update verification status to verified (completed)
+      await this.db.updateVerification(verificationId, {
+        status: 'verified',
+        verifiedAt: new Date().toISOString(),
+        metadata: {
+          ...verification.metadata,
+          completedAt: new Date().toISOString(),
+          confidence: 98.5,
+        },
+      });
+
+      logger.info('Verification marked as completed', {
+        verificationId,
+        userAddress: verification.userAddress,
+      });
+
+      // Mint NFT for the completed verification
+      try {
+        const nftResult = await this.contractService.mintNFT({
+          userAddress: verification.userAddress,
+          prompt: verification.prompt,
+          output: verification.output,
+          model: verification.model,
+          requestId: verificationId,
+        });
+
+        logger.info('NFT minted successfully for verification', {
+          verificationId,
+          tokenId: nftResult.tokenId,
+          transactionHash: nftResult.transactionHash,
+          userAddress: verification.userAddress,
+        });
+
+        // Update verification with NFT information
+        await this.db.updateVerification(verificationId, {
+          metadata: {
+            ...verification.metadata,
+            nftTokenId: nftResult.tokenId,
+            nftTransactionHash: nftResult.transactionHash,
+            nftMintedAt: new Date().toISOString(),
+          },
+        });
+
+        // Update user stats for NFT minting
+        await this.db.updateUserNFTStats(verification.userAddress);
+
+        // Save NFT to database
+        await this.db.saveNFT({
+          tokenId: nftResult.tokenId,
+          owner: verification.userAddress,
+          prompt: verification.prompt,
+          output: verification.output,
+          model: verification.model,
+          verificationId: verificationId,
+          metadataURI: `https://api.veriai.app/nft/${nftResult.tokenId}/metadata`,
+          timestamp: new Date().toISOString(),
+        });
+
+        logger.info('NFT data saved to database', {
+          verificationId,
+          tokenId: nftResult.tokenId,
+          owner: verification.userAddress,
+        });
+
+      } catch (nftError) {
+        logger.error('Failed to mint NFT for verification', {
+          verificationId,
+          userAddress: verification.userAddress,
+          error: nftError instanceof Error ? nftError.message : 'Unknown error',
+        });
+        // Don't fail the verification completion if NFT minting fails
+      }
+
+    } catch (error) {
+      logger.error('Failed to complete verification', {
+        verificationId,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
       throw error;
     }
   }

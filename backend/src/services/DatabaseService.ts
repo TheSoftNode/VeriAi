@@ -60,17 +60,6 @@ interface ChallengeData {
   resolvedAt?: string;
 }
 
-interface NFTData {
-  tokenId: string;
-  owner: string;
-  prompt: string;
-  output: string;
-  model: string;
-  verificationId: string;
-  metadataURI: string;
-  timestamp: string;
-}
-
 export class DatabaseService {
   private isConnected: boolean = false;
   private connectionPromise: Promise<void> | null = null;
@@ -109,9 +98,15 @@ export class DatabaseService {
       }
       
       await mongoose.connect(mongoUri, {
-        serverSelectionTimeoutMS: 5000,
+        serverSelectionTimeoutMS: 30000, // Increased from 5s to 30s
         socketTimeoutMS: 45000,
+        connectTimeoutMS: 30000,
+        maxPoolSize: 10,
+        minPoolSize: 5,
       });
+
+      // Disable mongoose buffering to avoid timeout issues
+      mongoose.set('bufferCommands', false);
 
       this.isConnected = true;
       logger.info('Connected to MongoDB', { uri: mongoUri.replace(/\/\/.*@/, '//***@') });
@@ -145,6 +140,9 @@ export class DatabaseService {
    */
   private async updateUserStats(userAddress: string, action: 'generation' | 'verification' | 'nft'): Promise<void> {
     try {
+      // Ensure user exists first
+      await this.ensureUserExists(userAddress);
+      
       const update: any = { lastActivity: new Date() };
       
       if (action === 'generation') update.$inc = { totalGenerations: 1 };
@@ -158,6 +156,31 @@ export class DatabaseService {
       );
     } catch (error) {
       logger.error('Failed to update user stats', { userAddress, action });
+    }
+  }
+
+  /**
+   * Update user stats for NFT minting
+   */
+  async updateUserNFTStats(userAddress: string): Promise<void> {
+    await this.updateUserStats(userAddress, 'nft');
+  }
+
+  /**
+   * Ensure user exists in the database
+   */
+  private async ensureUserExists(userAddress: string): Promise<void> {
+    try {
+      await User.findOneAndUpdate(
+        { address: userAddress },
+        {
+          address: userAddress,
+          lastActivity: new Date(),
+        },
+        { upsert: true, new: true }
+      );
+    } catch (error) {
+      logger.error('Failed to ensure user exists', { userAddress, error });
     }
   }
 
@@ -602,33 +625,17 @@ export class DatabaseService {
   }
 
   // NFT methods
-  async saveNFT(nft: NFTData): Promise<void> {
-    try {
-      const doc = new NFT({
-        tokenId: nft.tokenId,
-        owner: nft.owner,
-        prompt: nft.prompt,
-        output: nft.output,
-        aiModel: nft.model,
-        verificationId: nft.verificationId,
-        metadataURI: nft.metadataURI,
-        timestamp: new Date(nft.timestamp),
-      });
 
-      await doc.save();
-      await this.updateUserStats(nft.owner, 'nft');
-      
-      logger.debug('NFT saved', { tokenId: nft.tokenId });
-    } catch (error) {
-      logger.error('Failed to save NFT', {
-        tokenId: nft.tokenId,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
-      throw error;
-    }
-  }
-
-  async getNFT(tokenId: string): Promise<NFTData | null> {
+  async getNFT(tokenId: string): Promise<{
+    tokenId: string;
+    owner: string;
+    prompt: string;
+    output: string;
+    model: string;
+    verificationId: string;
+    metadataURI: string;
+    timestamp: string;
+  } | null> {
     try {
       const doc = await NFT.findOne({ tokenId });
       if (!doc) return null;
@@ -657,7 +664,16 @@ export class DatabaseService {
     page: number = 1,
     limit: number = 20
   ): Promise<{
-    nfts: NFTData[];
+    nfts: {
+      tokenId: string;
+      owner: string;
+      prompt: string;
+      output: string;
+      model: string;
+      verificationId: string;
+      metadataURI: string;
+      timestamp: string;
+    }[];
     total: number;
     page: number;
     totalPages: number;
@@ -854,6 +870,45 @@ export class DatabaseService {
         error: error instanceof Error ? error.message : 'Unknown error',
       });
       return 0;
+    }
+  }
+
+  async saveNFT(nftData: {
+    tokenId: string;
+    owner: string;
+    prompt: string;
+    output: string;
+    model: string;
+    verificationId: string;
+    metadataURI: string;
+    timestamp: string;
+  }): Promise<INFT> {
+    await this.ensureConnection();
+    try {
+      const nft = new NFT({
+        tokenId: nftData.tokenId,
+        owner: nftData.owner,
+        name: `VeriAI #${nftData.tokenId}`,
+        description: 'Verified AI-generated content NFT',
+        image: '',
+        prompt: nftData.prompt,
+        output: nftData.output,
+        model: nftData.model,
+        verificationId: nftData.verificationId,
+        metadataURI: nftData.metadataURI,
+        timestamp: nftData.timestamp,
+        status: 'minted',
+      });
+
+      const savedNFT = await nft.save();
+      logger.debug('NFT saved', { tokenId: nftData.tokenId, owner: nftData.owner });
+      return savedNFT;
+    } catch (error) {
+      logger.error('Failed to save NFT', {
+        tokenId: nftData.tokenId,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      throw error;
     }
   }
 

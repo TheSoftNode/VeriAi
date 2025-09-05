@@ -36,6 +36,7 @@ const VerifyPage = () => {
   const [verificationHistory, setVerificationHistory] = useState<VerificationResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [uploadedFile, setUploadedFile] = useState<{ name: string; size: number } | null>(null);
 
   useEffect(() => {
     if (isConnected && address) {
@@ -82,15 +83,22 @@ const VerifyPage = () => {
   };
 
   const handleFileUpload = (file: File) => {
-    if (file.type.startsWith('text/') || file.name.endsWith('.txt') || file.name.endsWith('.md')) {
+    if (file.type.startsWith('text/') || file.name.endsWith('.txt') || file.name.endsWith('.md') || file.name.endsWith('.json')) {
       const reader = new FileReader();
       reader.onload = (e) => {
         const text = e.target?.result as string;
         setContent(text);
+        setUploadedFile({
+          name: file.name,
+          size: file.size
+        });
+      };
+      reader.onerror = () => {
+        alert('Error reading file. Please try again.');
       };
       reader.readAsText(file);
     } else {
-      alert('Please upload a text file (.txt, .md)');
+      alert('Please upload a text file (.txt, .md, .json)');
     }
   };
 
@@ -117,6 +125,24 @@ const VerifyPage = () => {
     const files = e.target.files;
     if (files && files.length > 0) {
       handleFileUpload(files[0]);
+    }
+  };
+
+  const clearUploadedFile = () => {
+    setUploadedFile(null);
+    setContent('');
+    // Reset file input
+    const fileInput = document.getElementById('file-upload') as HTMLInputElement;
+    if (fileInput) {
+      fileInput.value = '';
+    }
+  };
+
+  const handleContentChange = (value: string) => {
+    setContent(value);
+    // If user manually edits content, clear uploaded file reference
+    if (uploadedFile && value !== content) {
+      setUploadedFile(null);
     }
   };
 
@@ -245,7 +271,7 @@ const VerifyPage = () => {
                       id="content"
                       placeholder="Paste the AI-generated content you want to verify..."
                       value={content}
-                      onChange={(e) => setContent(e.target.value)}
+                      onChange={(e) => handleContentChange(e.target.value)}
                       className="min-h-48 mt-2"
                       maxLength={5000}
                     />
@@ -254,6 +280,29 @@ const VerifyPage = () => {
                       <span>{content.length}/5000</span>
                     </div>
                   </div>
+
+                  {/* File Upload Preview */}
+                  {uploadedFile && (
+                    <div className="border border-green-200 bg-green-50 rounded-lg p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <FileText className="h-5 w-5 text-green-600" />
+                          <div>
+                            <p className="text-sm font-medium text-green-800">{uploadedFile.name}</p>
+                            <p className="text-xs text-green-600">{(uploadedFile.size / 1024).toFixed(1)} KB</p>
+                          </div>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={clearUploadedFile}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Upload Option */}
                   <div className="border-t pt-6">
@@ -274,12 +323,12 @@ const VerifyPage = () => {
                         Drop a text file here or click to browse
                       </p>
                       <p className="text-xs text-muted-foreground mt-1">
-                        Supports .txt, .md files
+                        Supports .txt, .md, .json files
                       </p>
                       <input
                         id="file-upload"
                         type="file"
-                        accept=".txt,.md,text/*"
+                        accept=".txt,.md,.json,text/*"
                         onChange={handleFileInputChange}
                         className="absolute inset-0 opacity-0 cursor-pointer"
                         aria-label="Upload file"
