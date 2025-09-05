@@ -35,6 +35,7 @@ const VerifyPage = () => {
   const [verificationResult, setVerificationResult] = useState<VerificationResult | null>(null);
   const [verificationHistory, setVerificationHistory] = useState<VerificationResult[]>([]);
   const [loading, setLoading] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
 
   useEffect(() => {
     if (isConnected && address) {
@@ -77,6 +78,45 @@ const VerifyPage = () => {
       }
     } catch (error) {
       console.error('Error loading specific verification:', error);
+    }
+  };
+
+  const handleFileUpload = (file: File) => {
+    if (file.type.startsWith('text/') || file.name.endsWith('.txt') || file.name.endsWith('.md')) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const text = e.target?.result as string;
+        setContent(text);
+      };
+      reader.readAsText(file);
+    } else {
+      alert('Please upload a text file (.txt, .md)');
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length > 0) {
+      handleFileUpload(files[0]);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  };
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      handleFileUpload(files[0]);
     }
   };
 
@@ -218,14 +258,32 @@ const VerifyPage = () => {
                   {/* Upload Option */}
                   <div className="border-t pt-6">
                     <Label className="text-base font-medium">Or Upload File</Label>
-                    <div className="mt-2 border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary/50 transition-colors cursor-pointer">
-                      <Upload className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                    <div 
+                      className={`mt-2 border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer relative ${
+                        isDragOver 
+                          ? 'border-primary bg-primary/5' 
+                          : 'border-border hover:border-primary/50'
+                      }`}
+                      onDrop={handleDrop}
+                      onDragOver={handleDragOver}
+                      onDragLeave={handleDragLeave}
+                      onClick={() => document.getElementById('file-upload')?.click()}
+                    >
+                      <Upload className={`h-8 w-8 mx-auto mb-2 ${isDragOver ? 'text-primary' : 'text-muted-foreground'}`} />
                       <p className="text-sm text-muted-foreground">
                         Drop a text file here or click to browse
                       </p>
                       <p className="text-xs text-muted-foreground mt-1">
-                        Supports .txt, .md, .doc files
+                        Supports .txt, .md files
                       </p>
+                      <input
+                        id="file-upload"
+                        type="file"
+                        accept=".txt,.md,text/*"
+                        onChange={handleFileInputChange}
+                        className="absolute inset-0 opacity-0 cursor-pointer"
+                        aria-label="Upload file"
+                      />
                     </div>
                   </div>
 

@@ -136,12 +136,12 @@ export class VerificationController {
    * Get verification history for user
    */
   getUserVerifications = async (req: Request, res: Response): Promise<void> => {
-    const { userAddress } = req.params;
+    const { address } = req.params;
     const { page = 1, limit = 20, status } = req.query;
 
     try {
       const verifications = await this.verificationService.getUserVerifications({
-        userAddress,
+        userAddress: address,
         page: parseInt(page as string),
         limit: parseInt(limit as string),
         status: status as string,
@@ -166,7 +166,7 @@ export class VerificationController {
     } catch (error) {
       logger.error('Failed to fetch user verifications', {
         error: error instanceof Error ? error.message : 'Unknown error',
-        userAddress,
+        userAddress: address,
       });
 
       throw createError.internal('Failed to fetch user verifications');
