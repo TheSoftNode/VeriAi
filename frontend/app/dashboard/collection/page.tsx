@@ -98,13 +98,14 @@ const CollectionPage = () => {
     }
   ];
 
-  const [nfts, setNfts] = useState<NFTMetadata[]>(mockNFTs);
+  const [nfts, setNfts] = useState<NFTMetadata[]>([]);
 
   useEffect(() => {
     if (isConnected && address) {
       loadNFTs();
     } else {
-      setNfts(mockNFTs);
+      // Show empty state when not connected instead of mock data
+      setNfts([]);
     }
   }, [isConnected, address]);
 
@@ -112,14 +113,30 @@ const CollectionPage = () => {
     setLoading(true);
     try {
       const response = await userApi.getNFTs(address!);
-      if (response.success && response.data && Array.isArray(response.data)) {
-        setNfts(response.data);
+      console.log('NFTs API response:', response); // Debug log
+      if (response.success && response.data && response.data.nfts && Array.isArray(response.data.nfts)) {
+        // Convert backend NFT format to frontend format
+        const convertedNFTs: NFTMetadata[] = response.data.nfts.map((nft: any) => ({
+          id: nft._id || nft.id,
+          tokenId: nft.tokenId,
+          name: nft.name || `VeriAI Certificate #${nft.tokenId}`,
+          description: nft.description || 'Verified AI-generated content NFT',
+          image: nft.image || `/api/nft/${nft.tokenId}/image`,
+          prompt: nft.prompt,
+          model: nft.model,
+          verificationDate: nft.timestamp || nft.createdAt,
+          confidence: 98.5, // Default confidence for verified NFTs
+          transactionHash: nft.transactionHash || '0x',
+          rarity: 'epic' as const // Default rarity for verified NFTs
+        }));
+        setNfts(convertedNFTs);
       } else {
-        setNfts(mockNFTs);
+        // If no NFTs, show empty state instead of mock data
+        setNfts([]);
       }
     } catch (error) {
       console.error('Error loading NFTs:', error);
-      setNfts(mockNFTs);
+      setNfts([]);
     } finally {
       setLoading(false);
     }
@@ -205,7 +222,9 @@ const CollectionPage = () => {
         <Card className="border-0 bg-card/50 backdrop-blur shadow-lg">
           <CardContent className="p-6 text-center">
             <Trophy className="h-8 w-8 text-chart-4 mx-auto mb-2" />
-            <p className="text-2xl font-bold text-foreground">1</p>
+            <p className="text-2xl font-bold text-foreground">
+              {Array.isArray(nfts) ? nfts.filter(nft => nft.rarity === 'legendary').length : 0}
+            </p>
             <p className="text-sm text-muted-foreground">Legendary</p>
           </CardContent>
         </Card>
@@ -213,7 +232,9 @@ const CollectionPage = () => {
         <Card className="border-0 bg-card/50 backdrop-blur shadow-lg">
           <CardContent className="p-6 text-center">
             <Sparkles className="h-8 w-8 text-chart-5 mx-auto mb-2" />
-            <p className="text-2xl font-bold text-foreground">1</p>
+            <p className="text-2xl font-bold text-foreground">
+              {Array.isArray(nfts) ? nfts.filter(nft => nft.rarity === 'epic').length : 0}
+            </p>
             <p className="text-sm text-muted-foreground">Epic</p>
           </CardContent>
         </Card>
@@ -221,7 +242,12 @@ const CollectionPage = () => {
         <Card className="border-0 bg-card/50 backdrop-blur shadow-lg">
           <CardContent className="p-6 text-center">
             <Zap className="h-8 w-8 text-accent mx-auto mb-2" />
-            <p className="text-2xl font-bold text-foreground">97.0%</p>
+            <p className="text-2xl font-bold text-foreground">
+              {Array.isArray(nfts) && nfts.length > 0 
+                ? (nfts.reduce((sum, nft) => sum + nft.confidence, 0) / nfts.length).toFixed(1)
+                : '0.0'
+              }%
+            </p>
             <p className="text-sm text-muted-foreground">Avg Confidence</p>
           </CardContent>
         </Card>
