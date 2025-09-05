@@ -219,8 +219,9 @@ const GeneratePage = () => {
     if (!generation.output || !address) return;
 
     try {
-      // Create content hash for the output
-      const contentHash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(generation.output.trim()));
+      // Create content hash for the output - MUST match backend exactly
+      // Backend uses raw output without trimming, so we do the same
+      const contentHash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(generation.output));
       const outputHash = Array.from(new Uint8Array(contentHash))
         .map(b => b.toString(16).padStart(2, '0'))
         .join('');
@@ -235,7 +236,9 @@ const GeneratePage = () => {
         outputHash,
         message,
         signature,
-        userAddress: address
+        userAddress: address,
+        outputLength: generation.output.length,
+        outputPreview: generation.output.substring(0, 100)
       });
 
       const response = await verificationApi.requestVerification({

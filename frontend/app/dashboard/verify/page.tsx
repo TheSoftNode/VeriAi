@@ -85,8 +85,11 @@ const VerifyPage = () => {
 
     setIsVerifying(true);
     try {
-      // Create content hash
-      const contentHash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(content.trim()));
+      // Use the exact content as entered (trimmed) for both hash and verification
+      const trimmedContent = content.trim();
+      
+      // Create content hash - using the same content we'll send
+      const contentHash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(trimmedContent));
       const outputHash = Array.from(new Uint8Array(contentHash))
         .map(b => b.toString(16).padStart(2, '0'))
         .join('');
@@ -97,11 +100,20 @@ const VerifyPage = () => {
       // Request wallet signature
       const signature = await signMessageAsync({ message });
 
+      console.log('Manual verification request:', {
+        outputHash,
+        message,
+        signature,
+        userAddress: address,
+        contentLength: trimmedContent.length,
+        contentPreview: trimmedContent.substring(0, 100)
+      });
+
       const response = await verificationApi.requestVerification({
         prompt: 'Verify this content',
         model: 'gemini-1.5-flash',
         userAddress: address,
-        output: content.trim(),
+        output: trimmedContent,
         outputHash,
         signature,
         message
