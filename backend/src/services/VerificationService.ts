@@ -124,7 +124,9 @@ export class VerificationService {
           logger.error('Content hash verification FAILED', {
             provided: finalOutputHash,
             computed: computedHash,
-            outputLength: output.length
+            outputLength: output.length,
+            outputPreview: output.substring(0, 200),
+            outputCharCodes: output.substring(0, 50).split('').map(c => c.charCodeAt(0))
           });
           throw new Error('Content hash mismatch - output was tampered with');
         }

@@ -1,4 +1,7 @@
-// Load environment variables FIRST before any other imports
+// Setup module aliases FIRST
+import 'module-alias/register';
+
+// Load environment variables SECOND before any other imports
 import dotenv from 'dotenv';
 dotenv.config();
 
