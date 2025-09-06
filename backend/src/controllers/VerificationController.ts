@@ -1,16 +1,13 @@
 import { Request, Response } from 'express';
 import { VerificationService } from '@/services/VerificationService';
-import { ContractService } from '@/services/ContractService';
 import { createError } from '@/middleware/errorHandler';
 import { logger } from '@/utils/logger';
 
 export class VerificationController {
   private verificationService: VerificationService;
-  private contractService: ContractService;
 
   constructor() {
     this.verificationService = new VerificationService();
-    this.contractService = new ContractService();
   }
 
   /**
@@ -231,36 +228,12 @@ export class VerificationController {
         verified,
       });
 
-      // If verified, mint NFT
+            // If verified, NFT minting is already handled in the VerificationService
       if (verified && updatedVerification) {
-        try {
-          const nftResult = await this.contractService.mintNFT({
-            userAddress: verification.userAddress,
-            prompt: verification.prompt,
-            output: verification.output,
-            model: verification.model,
-            requestId: requestId,
-          });
-
-          // Update verification with NFT information
-          await this.verificationService.updateVerificationNFT(requestId, {
-            nftTokenId: nftResult.tokenId,
-            transactionHash: nftResult.transactionHash,
-            blockNumber: nftResult.blockNumber,
-          });
-
-          logger.info('Verification fulfilled and NFT minted', {
-            verificationId: requestId,
-            tokenId: nftResult.tokenId,
-            transactionHash: nftResult.transactionHash,
-          });
-        } catch (nftError) {
-          logger.error('Failed to mint NFT after verification', {
-            verificationId: requestId,
-            error: nftError instanceof Error ? nftError.message : 'Unknown error',
-          });
-          // Don't fail the entire request if NFT minting fails
-        }
+        logger.info('Verification fulfilled and NFT creation handled by VerificationService', {
+          verificationId: requestId,
+          verified,
+        });
       }
 
       res.status(200).json({

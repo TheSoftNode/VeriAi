@@ -135,14 +135,21 @@ export const Challenge = mongoose.model<IChallenge>('Challenge', ChallengeSchema
 export interface INFT extends Document {
   tokenId: string;
   owner: string;
+  name: string;
+  description: string;
+  image: string;
   prompt: string;
   output: string;
   aiModel: string;
   verificationId: mongoose.Types.ObjectId;
   metadataURI: string;
   timestamp: Date;
+  verificationDate: Date;
+  confidence: number;
   transactionHash?: string;
   blockNumber?: number;
+  rarity: string;
+  status: string;
   metadata?: Record<string, any>;
   createdAt: Date;
   updatedAt: Date;
@@ -151,14 +158,21 @@ export interface INFT extends Document {
 const NFTSchema = new Schema<INFT>({
   tokenId: { type: String, required: true, unique: true, index: true },
   owner: { type: String, required: true },
+  name: { type: String, required: true },
+  description: { type: String, required: true },
+  image: { type: String, required: true },
   prompt: { type: String, required: true },
   output: { type: String, required: true },
   aiModel: { type: String, required: true },
   verificationId: { type: Schema.Types.ObjectId, ref: 'Verification', required: true },
   metadataURI: { type: String, required: true },
   timestamp: { type: Date, default: Date.now },
+  verificationDate: { type: Date, default: Date.now },
+  confidence: { type: Number, required: true },
   transactionHash: { type: String },
   blockNumber: { type: Number },
+  rarity: { type: String, enum: ['common', 'rare', 'epic', 'legendary'], default: 'common' },
+  status: { type: String, default: 'minted' },
   metadata: { type: Schema.Types.Mixed, default: {} }
 }, {
   timestamps: true

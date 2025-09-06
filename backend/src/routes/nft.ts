@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { ContractController } from '@/controllers/ContractController';
+// import { ContractController } from '@/controllers/ContractController';
 import { asyncHandler } from '@/middleware/errorHandler';
 import {
   validateNFTMinting,
@@ -10,14 +10,14 @@ import {
 
 const router = Router();
 
-// Lazy instantiation to ensure env vars are loaded
-let contractController: ContractController;
-const getController = () => {
-  if (!contractController) {
-    contractController = new ContractController();
-  }
-  return contractController;
-};
+// Contract functionality disabled for now
+// let contractController: ContractController;
+// const getController = () => {
+//   if (!contractController) {
+//     contractController = new ContractController();
+//   }
+//   return contractController;
+// };
 
 /**
  * @swagger
@@ -81,7 +81,12 @@ const getController = () => {
 router.post(
   '/mint',
   validateNFTMinting,
-  asyncHandler(async (req, res) => getController().mintNFT(req, res))
+  asyncHandler(async (req, res) => {
+    res.status(503).json({
+      success: false,
+      error: 'NFT minting temporarily disabled - use verification endpoint instead'
+    });
+  })
 );
 
 /**
@@ -120,7 +125,12 @@ router.post(
 router.get(
   '/:tokenId',
   validateTokenId,
-  asyncHandler(async (req, res) => getController().getNFT(req, res))
+  asyncHandler(async (req, res) => {
+    res.status(503).json({
+      success: false,
+      error: 'NFT retrieval temporarily disabled'
+    });
+  })
 );
 
 /**
@@ -187,7 +197,12 @@ router.get(
   '/user/:userAddress',
   validateEthereumAddress,
   validatePagination,
-  asyncHandler(async (req, res) => getController().getUserNFTs(req, res))
+  asyncHandler(async (req, res) => {
+    res.status(503).json({
+      success: false,
+      error: 'User NFT retrieval temporarily disabled'
+    });
+  })
 );
 
 /**
@@ -227,7 +242,12 @@ router.get(
  */
 router.get(
   '/stats',
-  asyncHandler(async (req, res) => getController().getStats(req, res))
+  asyncHandler(async (req, res) => {
+    res.status(503).json({
+      success: false,
+      error: 'NFT stats temporarily disabled'
+    });
+  })
 );
 
 export default router;

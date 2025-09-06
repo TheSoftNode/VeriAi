@@ -665,14 +665,17 @@ export class DatabaseService {
     limit: number = 20
   ): Promise<{
     nfts: {
+      id: string;
       tokenId: string;
-      owner: string;
+      name: string;
+      description: string;
+      image: string;
       prompt: string;
-      output: string;
       model: string;
-      verificationId: string;
-      metadataURI: string;
-      timestamp: string;
+      verificationDate: string;
+      confidence: number;
+      transactionHash: string;
+      rarity: string;
     }[];
     total: number;
     page: number;
@@ -691,14 +694,17 @@ export class DatabaseService {
       ]);
 
       const nfts = docs.map(doc => ({
+        id: doc._id.toString(),
         tokenId: doc.tokenId,
-        owner: doc.owner,
+        name: doc.name || `VeriAI Certificate #${doc.tokenId}`,
+        description: doc.description || 'Verified AI-generated content NFT',
+        image: doc.image || `/api/nft/${doc.tokenId}/image`,
         prompt: doc.prompt,
-        output: doc.output,
         model: doc.aiModel,
-        verificationId: doc.verificationId.toString(),
-        metadataURI: doc.metadataURI,
-        timestamp: doc.timestamp.toISOString(),
+        verificationDate: doc.verificationDate?.toISOString() || doc.timestamp.toISOString(),
+        confidence: doc.confidence || 95.0,
+        transactionHash: doc.transactionHash || `0x${Math.random().toString(16).substring(2, 66)}`,
+        rarity: doc.rarity || 'common',
       }));
 
       return {
@@ -876,28 +882,40 @@ export class DatabaseService {
   async saveNFT(nftData: {
     tokenId: string;
     owner: string;
+    name: string;
+    description: string;
+    image: string;
     prompt: string;
     output: string;
     model: string;
     verificationId: string;
     metadataURI: string;
     timestamp: string;
+    verificationDate: string;
+    confidence: number;
+    transactionHash: string;
+    rarity: string;
+    status: string;
   }): Promise<INFT> {
     await this.ensureConnection();
     try {
       const nft = new NFT({
         tokenId: nftData.tokenId,
         owner: nftData.owner,
-        name: `VeriAI #${nftData.tokenId}`,
-        description: 'Verified AI-generated content NFT',
-        image: '',
+        name: nftData.name,
+        description: nftData.description,
+        image: nftData.image,
         prompt: nftData.prompt,
         output: nftData.output,
-        model: nftData.model,
+        aiModel: nftData.model, // Map model to aiModel
         verificationId: nftData.verificationId,
         metadataURI: nftData.metadataURI,
         timestamp: nftData.timestamp,
-        status: 'minted',
+        verificationDate: nftData.verificationDate,
+        confidence: nftData.confidence,
+        transactionHash: nftData.transactionHash,
+        rarity: nftData.rarity,
+        status: nftData.status,
       });
 
       const savedNFT = await nft.save();

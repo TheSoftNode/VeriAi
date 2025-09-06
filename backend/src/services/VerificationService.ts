@@ -3,7 +3,6 @@ import { ethers } from 'ethers';
 import { logger } from '@/utils/logger';
 import { DatabaseService } from './DatabaseService';
 import { FDCService } from './FDCService';
-import { ContractService } from './ContractService';
 
 interface SubmitProofParams {
   prompt: string;
@@ -59,12 +58,10 @@ interface Challenge {
 export class VerificationService {
   private db: DatabaseService;
   private fdcService: FDCService;
-  private contractService: ContractService;
 
   constructor() {
     this.db = new DatabaseService();
     this.fdcService = new FDCService();
-    this.contractService = new ContractService();
   }
 
   /**
@@ -145,7 +142,7 @@ export class VerificationService {
         });
       }
 
-      // Create verification record
+      // Create verification record as completed immediately
       const verification: Verification = {
         id: verificationId,
         prompt,
@@ -154,32 +151,28 @@ export class VerificationService {
         outputHash: finalOutputHash,
         userAddress,
         signature: signature || '',
-        status: 'pending',
+        status: 'verified',
         timestamp,
+        verifiedAt: timestamp,
         metadata: {
           submittedAt: timestamp,
           attestationData,
           confidence: 95.0, // Default confidence for signed verifications
+          completedAt: timestamp,
         },
       };
 
       // Save to database
       await this.db.saveVerification(verification);
 
-      // Start FDC attestation process
-      this.initiateAttestationProcess(verification);
+      // Ensure user exists and update stats
+      await this.db.updateUserNFTStats(userAddress);
 
-      // For demo: Auto-complete verification and mint NFT after submission
-      setTimeout(async () => {
-        try {
-          await this.completeVerificationAndMintNFT(verificationId);
-        } catch (error) {
-          logger.error('Failed to auto-complete verification', {
-            verificationId,
-            error: error instanceof Error ? error.message : 'Unknown error',
-          });
-        }
-      }, 3000); // Complete after 3 seconds for demo
+      // Create NFT immediately after verification
+      await this.createNFTForVerification(verification);
+
+      // Start FDC attestation process (async, don't wait)
+      this.initiateAttestationProcess(verification);
 
       logger.info('Verification proof submitted', {
         verificationId,
@@ -231,20 +224,23 @@ export class VerificationService {
         userAddress: verification.userAddress,
       });
 
-      // Mint NFT for the completed verification
+      // Create NFT for the completed verification (without blockchain minting for now)
       try {
-        const nftResult = await this.contractService.mintNFT({
-          userAddress: verification.userAddress,
-          prompt: verification.prompt,
-          output: verification.output,
-          model: verification.model,
-          requestId: verificationId,
-        });
+        // Generate a simple tokenId based on timestamp
+        const tokenId = Date.now().toString();
+        const confidence = verification.metadata?.confidence || 95.0;
+        let rarity: 'common' | 'rare' | 'epic' | 'legendary';
+        if (confidence >= 99) rarity = 'legendary';
+        else if (confidence >= 97) rarity = 'epic';
+        else if (confidence >= 95) rarity = 'rare';
+        else rarity = 'common';
 
-        logger.info('NFT minted successfully for verification', {
+        // Create mock transaction hash
+        const transactionHash = `0x${Math.random().toString(16).substring(2, 66)}`;
+
+        logger.info('Creating NFT for verification', {
           verificationId,
-          tokenId: nftResult.tokenId,
-          transactionHash: nftResult.transactionHash,
+          tokenId: tokenId,
           userAddress: verification.userAddress,
         });
 
@@ -252,8 +248,8 @@ export class VerificationService {
         await this.db.updateVerification(verificationId, {
           metadata: {
             ...verification.metadata,
-            nftTokenId: nftResult.tokenId,
-            nftTransactionHash: nftResult.transactionHash,
+            nftTokenId: tokenId,
+            nftTransactionHash: transactionHash,
             nftMintedAt: new Date().toISOString(),
           },
         });
@@ -263,29 +259,37 @@ export class VerificationService {
 
         // Save NFT to database
         await this.db.saveNFT({
-          tokenId: nftResult.tokenId,
+          tokenId: tokenId,
           owner: verification.userAddress,
+          name: `VeriAI Certificate #${tokenId}`,
+          description: verification.prompt.substring(0, 50) + '...',
+          image: `/api/nft/${tokenId}/image`,
           prompt: verification.prompt,
           output: verification.output,
           model: verification.model,
           verificationId: verificationId,
-          metadataURI: `https://api.veriai.app/nft/${nftResult.tokenId}/metadata`,
+          metadataURI: `https://api.veriai.app/nft/${tokenId}/metadata`,
           timestamp: new Date().toISOString(),
+          verificationDate: new Date().toISOString(),
+          confidence: confidence,
+          transactionHash: transactionHash,
+          rarity: rarity,
+          status: 'minted',
         });
 
-        logger.info('NFT data saved to database', {
+        logger.info('NFT created and saved successfully', {
           verificationId,
-          tokenId: nftResult.tokenId,
+          tokenId: tokenId,
           owner: verification.userAddress,
         });
 
       } catch (nftError) {
-        logger.error('Failed to mint NFT for verification', {
+        logger.error('Failed to create NFT for verification', {
           verificationId,
           userAddress: verification.userAddress,
           error: nftError instanceof Error ? nftError.message : 'Unknown error',
         });
-        // Don't fail the verification completion if NFT minting fails
+        // Don't fail the verification completion if NFT creation fails
       }
 
     } catch (error) {
@@ -666,6 +670,62 @@ export class VerificationService {
         error: error instanceof Error ? error.message : 'Unknown error',
       });
       throw error;
+    }
+  }
+
+  /**
+   * Create NFT for completed verification
+   */
+  private async createNFTForVerification(verification: Verification): Promise<void> {
+    try {
+      // Generate a simple tokenId based on timestamp
+      const tokenId = Date.now().toString();
+      
+      // Determine rarity based on confidence
+      const confidence = verification.metadata?.confidence || 95.0;
+      let rarity: 'common' | 'rare' | 'epic' | 'legendary';
+      if (confidence >= 99) rarity = 'legendary';
+      else if (confidence >= 97) rarity = 'epic';
+      else if (confidence >= 95) rarity = 'rare';
+      else rarity = 'common';
+
+      // Create NFT data matching the frontend structure
+      const nftData = {
+        tokenId: tokenId,
+        owner: verification.userAddress,
+        name: `VeriAI Certificate #${tokenId}`,
+        description: verification.prompt.substring(0, 50) + '...',
+        image: `/api/nft/${tokenId}/image`,
+        prompt: verification.prompt,
+        output: verification.output,
+        model: verification.model,
+        verificationId: verification.id,
+        metadataURI: `https://api.veriai.app/nft/${tokenId}/metadata`,
+        timestamp: verification.timestamp,
+        verificationDate: verification.timestamp,
+        confidence: confidence,
+        transactionHash: `0x${Math.random().toString(16).substring(2, 66)}`, // Mock transaction hash
+        rarity: rarity,
+        status: 'minted',
+      };
+
+      // Save NFT to database
+      await this.db.saveNFT(nftData);
+
+      logger.info('NFT created for verification', {
+        verificationId: verification.id,
+        tokenId: tokenId,
+        owner: verification.userAddress,
+        rarity: rarity,
+      });
+
+    } catch (error) {
+      logger.error('Failed to create NFT for verification', {
+        verificationId: verification.id,
+        userAddress: verification.userAddress,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      // Don't throw error to avoid breaking verification process
     }
   }
 

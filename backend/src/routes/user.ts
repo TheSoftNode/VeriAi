@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { AIService } from '@/services/AIService';
 import { VerificationService } from '@/services/VerificationService';
-import { ContractService } from '@/services/ContractService';
+import { DatabaseService } from '@/services/DatabaseService';
 import {
   validateEthereumAddress,
   validatePagination,
@@ -11,15 +11,16 @@ import { asyncHandler } from '@/middleware/errorHandler';
 const router = Router();
 const aiService = new AIService();
 const verificationService = new VerificationService();
+const databaseService = new DatabaseService();
 
-// Lazy instantiation to ensure env vars are loaded
-let contractService: ContractService;
-const getContractService = () => {
-  if (!contractService) {
-    contractService = new ContractService();
-  }
-  return contractService;
-};
+// Contract service disabled for now
+// let contractService: ContractService;
+// const getContractService = () => {
+//   if (!contractService) {
+//     contractService = new ContractService();
+//   }
+//   return contractService;
+// };
 
 /**
  * @swagger
@@ -240,11 +241,11 @@ router.get(
     const { userAddress } = req.params;
     const { page = 1, limit = 20 } = req.query;
 
-    const nfts = await getContractService().getUserNFTs({
+    const nfts = await databaseService.getUserNFTs(
       userAddress,
-      page: parseInt(page as string),
-      limit: parseInt(limit as string),
-    });
+      parseInt(page as string),
+      parseInt(limit as string)
+    );
 
     res.status(200).json({
       success: true,
@@ -309,11 +310,7 @@ router.get(
         page: 1,
         limit: 1,
       }),
-      getContractService().getUserNFTs({
-        userAddress,
-        page: 1,
-        limit: 1,
-      }),
+      databaseService.getUserNFTs(userAddress, 1, 1),
       // Get all verifications to calculate success rate
       verificationService.getUserVerifications({
         userAddress,
@@ -324,13 +321,13 @@ router.get(
 
     // Calculate success rate
     const totalVerifications = allVerifications.total;
-    const verifiedCount = allVerifications.verifications.filter(v => v.status === 'verified').length;
+    const verifiedCount = allVerifications.verifications.filter((v: any) => v.status === 'verified').length;
     const successRate = totalVerifications > 0 ? Math.round((verifiedCount / totalVerifications) * 100) : 0;
 
     // Calculate activity today
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const todayGenerations = generations.generations?.filter(g => 
+    const todayGenerations = generations.generations?.filter((g: any) => 
       new Date(g.timestamp) >= today
     ).length || 0;
 

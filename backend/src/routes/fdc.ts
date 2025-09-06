@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { ContractController } from '@/controllers/ContractController';
+// import { ContractController } from '@/controllers/ContractController';
 import { asyncHandler } from '@/middleware/errorHandler';
 import {
   validateFDCAttestationSubmission,
@@ -8,14 +8,14 @@ import {
 
 const router = Router();
 
-// Lazy instantiation to ensure env vars are loaded
-let contractController: ContractController;
-const getController = () => {
-  if (!contractController) {
-    contractController = new ContractController();
-  }
-  return contractController;
-};
+// Contract functionality disabled for now
+// let contractController: ContractController;
+// const getController = () => {
+//   if (!contractController) {
+//     contractController = new ContractController();
+//   }
+//   return contractController;
+// };
 
 /**
  * @swagger
@@ -57,7 +57,12 @@ const getController = () => {
 router.post(
   '/attestation',
   validateFDCAttestationSubmission,
-  asyncHandler(async (req, res) => getController().submitAttestation(req, res))
+  asyncHandler(async (req, res) => {
+    res.status(503).json({
+      success: false,
+      error: 'FDC functionality temporarily disabled'
+    });
+  })
 );
 
 /**
@@ -111,7 +116,12 @@ router.post(
 router.post(
   '/verify',
   validateAttestationVerification,
-  asyncHandler(async (req, res) => getController().verifyAttestation(req, res))
+  asyncHandler(async (req, res) => {
+    res.status(503).json({
+      success: false,
+      error: 'FDC functionality temporarily disabled'
+    });
+  })
 );
 
 /**
@@ -150,7 +160,12 @@ router.post(
  */
 router.get(
   '/stats',
-  asyncHandler(async (req, res) => getController().getFDCStats(req, res))
+  asyncHandler(async (req, res) => {
+    res.status(503).json({
+      success: false,
+      error: 'FDC functionality temporarily disabled'
+    });
+  })
 );
 
 export default router;

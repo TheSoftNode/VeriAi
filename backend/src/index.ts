@@ -17,7 +17,6 @@ import { Server as SocketIOServer } from 'socket.io';
 import { errorHandler } from '@/middleware/errorHandler';
 import { rateLimiter } from '@/middleware/rateLimiter';
 import { logger } from '@/utils/logger';
-import { ContractService } from '@/services/ContractService';
 import { DatabaseService } from '@/services/DatabaseService';
 import { setupSwagger } from '@/config/swagger';
 import apiRoutes from '@/routes';
@@ -172,14 +171,8 @@ async function initializeServices() {
     await db.connect();
     logger.info('✅ Database connected successfully');
 
-    // Initialize contract service and event listeners
-    if (process.env.PRIVATE_KEY && process.env.VERI_AI_CONTRACT_ADDRESS) {
-      const contractService = new ContractService();
-      contractService.setupEventListeners();
-      logger.info('✅ Contract service initialized and event listeners set up');
-    } else {
-      logger.warn('⚠️ Contract service not initialized - missing environment variables');
-    }
+    // Contract service disabled for now - using mock NFT generation
+    logger.info('✅ Using mock NFT generation (contract service disabled)');
   } catch (error) {
     logger.error('❌ Failed to initialize services', {
       error: error instanceof Error ? error.message : 'Unknown error',
